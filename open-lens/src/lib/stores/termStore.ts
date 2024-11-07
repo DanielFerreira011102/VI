@@ -1,168 +1,130 @@
-// termStore.ts
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
+import type { Term } from '$lib/types/term';
+import { TERM_COLORS, MAX_TERMS } from '$lib/constants/term';
 
-export type Term = {
-  id: string;
-  value: string;
-  type: 'search' | 'selected' | 'compare';
-  color?: string;
-};
+const createInitialTerm = (): Term => ({
+	id: '1',
+	value: '',
+	type: 'search',
+	color: TERM_COLORS[0]
+});
 
 function createTermStore() {
-  const COLORS = ['#4c8df6', '#e46962', '#f7ce52', '#1ea446', '#886cd5'];
-  const MAX_TERMS = 5;
-  
-  const initialTerm: Term = { id: '1', value: '', type: 'search', color: COLORS[0] };
-  const { subscribe, set, update } = writable<Term[]>([initialTerm]);
+	const { subscribe, set, update } = writable<Term[]>([createInitialTerm()]);
 
-  const updateURL = (terms: Term[]) => {
-    const selectedTerms = terms.filter(t => t.type === 'selected').map(t => t.value);
-    const queryString = selectedTerms.length > 0 ? `?q=${selectedTerms.join(',')}` : '';
-    goto(`/explore${queryString}`, { replaceState: true });
-  };
+	const updateURL = (terms: Term[]) => {
+		const selectedTerms = terms.filter((t) => t.type === 'selected').map((t) => t.value);
+		const queryString = selectedTerms.length ? `?q=${selectedTerms.join(',')}` : '';
+		goto(`/explore${queryString}`, { replaceState: true });
+	};
 
-  return {
-    subscribe,
-    initialize: (queryString: string) => {
-      try {
-        if (!queryString) {
-          set([initialTerm]);
-          return;
-        }
+	const addCompareTerm = (terms: Term[]): Term[] => {
+		if (terms.length < MAX_TERMS && !terms.some((t) => t.type === 'compare')) {
+			return [
+				...terms,
+				{
+					id: String(terms.length + 1),
+					value: '',
+					type: 'compare',
+					color: TERM_COLORS[terms.length]
+				}
+			];
+		}
+		return terms;
+	};
 
-        const params = new URLSearchParams(queryString);
-        const terms = params.get('q')?.split(',').filter(Boolean) || [];
-        
-        if (terms.length === 0) {
-          set([initialTerm]);
-          return;
-        }
+	const normalizeTerms = (terms: Term[]): Term[] => {
+		return terms.map((term, index) => ({
+			...term,
+			id: String(index + 1),
+			color: TERM_COLORS[index]
+		}));
+	};
 
-        const newTerms: Term[] = terms.map((value, index) => ({
-          id: String(index + 1),
-          value,
-          type: 'selected',
-          color: COLORS[index]
-        }));
+	return {
+		subscribe,
+		initialize: (queryString: string) => {
+			try {
+				if (!queryString) {
+					set([createInitialTerm()]);
+					return;
+				}
 
-        if (newTerms.length < MAX_TERMS) {
-          newTerms.push({
-            id: String(newTerms.length + 1),
-            value: '',
-            type: 'compare',
-            color: COLORS[newTerms.length]
-          });
-        }
+				const params = new URLSearchParams(queryString);
+				const terms = params.get('q')?.split(',').filter(Boolean) || [];
 
-        set(newTerms);
-      } catch (error) {
-        console.error('Error initializing terms:', error);
-        set([initialTerm]);
-      }
-    },
-    convertCompareToSearch: (id: string) => {
-      update((terms): Term[] => {
-        const updatedTerms = terms.map(term => 
-          term.id === id ? { ...term, type: 'search' as const } : term
-        );
-        updateURL(updatedTerms);
-        return updatedTerms;
-      });
-    },
-    updateTerm: (id: string, value: string) => {
-      update((terms): Term[] => {
-        let updatedTerms = terms.map(term => 
-          term.id === id ? { ...term, value, type: 'selected' as const } : term
-        );
-        
-        updatedTerms = updatedTerms.filter(term => term.type !== 'compare');
-        
-        if (updatedTerms.length < MAX_TERMS) {
-          updatedTerms.push({ 
-            id: String(updatedTerms.length + 1), 
-            value: '', 
-            type: 'compare',
-            color: COLORS[updatedTerms.length] 
-          });
-        }
-        
-        updateURL(updatedTerms);
-        return updatedTerms;
-      });
-    },
-    setType: (id: string, type: Term['type']) => {
-      update((terms): Term[] => {
-        const updatedTerms = terms.map(term => 
-          term.id === id ? { ...term, type } : term
-        );
-        updateURL(updatedTerms);
-        return updatedTerms;
-      });
-    },
-    deleteEmptyTerm: (id: string) => {
-      update((terms): Term[] => {
-        const remainingSelected = terms.filter(t => t.type === 'selected' && t.id !== id);
-        
-        if (remainingSelected.length === 0) {
-          updateURL([initialTerm]);
-          return [initialTerm];
-        }
+				if (!terms.length) {
+					set([createInitialTerm()]);
+					return;
+				}
 
-        const updatedTerms: Term[] = terms
-          .filter(t => t.id !== id)
-          .map((term, index) => ({
-            ...term,
-            id: String(index + 1),
-            color: COLORS[index]
-          }));
+				const newTerms = terms.map((value, index) => ({
+					id: String(index + 1),
+					value,
+					type: 'selected' as const,
+					color: TERM_COLORS[index]
+				}));
 
-        if (updatedTerms.length < MAX_TERMS && !updatedTerms.some(t => t.type === 'compare')) {
-          updatedTerms.push({
-            id: String(updatedTerms.length + 1),
-            value: '',
-            type: 'compare',
-            color: COLORS[updatedTerms.length]
-          });
-        }
+				set(addCompareTerm(newTerms));
+			} catch (error) {
+				console.error('Error initializing terms:', error);
+				set([createInitialTerm()]);
+			}
+		},
 
-        updateURL(updatedTerms);
-        return updatedTerms;
-      });
-    },
-    deleteTerm: (id: string) => {
-      update((terms): Term[] => {
-        const filteredTerms = terms.filter(term => term.id !== id);
-        
-        if (filteredTerms.length === 0 || !filteredTerms.some(t => t.type === 'selected')) {
-          updateURL([initialTerm]);
-          return [initialTerm];
-        }
+		convertCompareToSearch: (id: string) => {
+			update((terms) => {
+				const updatedTerms = terms.map((term) =>
+					term.id === id ? { ...term, type: 'search', value: '' } : term
+				);
+				return updatedTerms;
+			});
+		},
 
-        const updatedTerms: Term[] = filteredTerms.map((term, index) => ({
-          ...term,
-          id: String(index + 1),
-          color: COLORS[index]
-        }));
+		updateTerm: (id: string, value: string) => {
+			update((terms) => {
+				const updatedTerms = terms
+					.filter((term) => term.type !== 'compare')
+					.map((term) => (term.id === id ? { ...term, value, type: 'selected' } : term));
+				const finalTerms = addCompareTerm(updatedTerms);
+				updateURL(finalTerms);
+				return finalTerms;
+			});
+		},
 
-        if (updatedTerms.length < MAX_TERMS && !updatedTerms.some(t => t.type === 'compare')) {
-          updatedTerms.push({
-            id: String(updatedTerms.length + 1),
-            value: '',
-            type: 'compare',
-            color: COLORS[updatedTerms.length]
-          });
-        }
+		setType: (id: string, type: Term['type']) => {
+			update((terms) => {
+				const updatedTerms = terms.map((term) => (term.id === id ? { ...term, type } : term));
+				updateURL(updatedTerms);
+				return updatedTerms;
+			});
+		},
 
-        updateURL(updatedTerms);
-        return updatedTerms;
-      });
-    },
-    resetToInitial: () => {
-      set([initialTerm]);
-      updateURL([initialTerm]);
-    },
-  };
+		deleteTerm: (id: string, shouldResetIfEmpty = false) => {
+			update((terms) => {
+				const filteredTerms = terms.filter((term) => term.id !== id);
+				const hasSelectedTerms = filteredTerms.some((t) => t.type === 'selected');
+
+				if (!filteredTerms.length || (!hasSelectedTerms && shouldResetIfEmpty)) {
+					const initialTerm = createInitialTerm();
+					updateURL([initialTerm]);
+					return [initialTerm];
+				}
+
+				const normalizedTerms = normalizeTerms(filteredTerms);
+				const finalTerms = addCompareTerm(normalizedTerms);
+				updateURL(finalTerms);
+				return finalTerms;
+			});
+		},
+
+		resetToInitial: () => {
+			const initialTerm = createInitialTerm();
+			set([initialTerm]);
+			updateURL([initialTerm]);
+		}
+	};
 }
 
 export const termStore = createTermStore();

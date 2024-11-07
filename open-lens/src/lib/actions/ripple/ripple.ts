@@ -1,118 +1,116 @@
-import type { RippleOptions } from "./constants.js";
+import type { RippleOptions } from './constants.js';
 import {
-    INEVENTS,
-    OUTEVENTS,
-    ATTR_NAME,
-    ATTR_CENTER_NAME,
-    addEvent,
-    removeEvent,
-    findFurthestPoint,
-} from "./constants.js";
+	INEVENTS,
+	OUTEVENTS,
+	ATTR_NAME,
+	ATTR_CENTER_NAME,
+	addEvent,
+	removeEvent,
+	findFurthestPoint
+} from './constants.js';
 import { onDestroy } from 'svelte';
 
 export function ripple(node: HTMLElement, options: RippleOptions = {}) {
-    let maximumRadius = 0;
-    
-    const addClassIfMissing = () => {
-        if (!node.getAttribute(ATTR_NAME)) {
-            node.setAttribute(ATTR_NAME, "");
-        }
+	let maximumRadius = 0;
 
-        if (options?.center) {
-            node.setAttribute(ATTR_CENTER_NAME, "");
-        } else {
-            node.removeAttribute(ATTR_CENTER_NAME);
-        }
-    };
+	const addClassIfMissing = () => {
+		if (!node.getAttribute(ATTR_NAME)) {
+			node.setAttribute(ATTR_NAME, '');
+		}
 
-    const setOptions = (opts: RippleOptions) => {
-        if (opts?.color) {
-            node.style.setProperty("--ripple-color", opts.color);
-        }
-        if (opts?.duration) {
-            node.style.setProperty("--ripple-duration", opts.duration + "s");
-        }
-        if (opts?.maxRadius) {
-            maximumRadius = opts.maxRadius;
-        }
-    };
+		if (options?.center) {
+			node.setAttribute(ATTR_CENTER_NAME, '');
+		} else {
+			node.removeAttribute(ATTR_CENTER_NAME);
+		}
+	};
 
-    const createRipple = (e: PointerEvent) => {
-        if (options?.disabled) return;
+	const setOptions = (opts: RippleOptions) => {
+		if (opts?.color) {
+			node.style.setProperty('--ripple-color', opts.color);
+		}
+		if (opts?.duration) {
+			node.style.setProperty('--ripple-duration', opts.duration + 's');
+		}
+		if (opts?.maxRadius) {
+			maximumRadius = opts.maxRadius;
+		}
+	};
 
-        e.stopPropagation();
-        addClassIfMissing();
+	const createRipple = (e: PointerEvent) => {
+		if (options?.disabled) return;
 
-        const rect = node.getBoundingClientRect();
-        const radius = findFurthestPoint(
-            e.clientX,
-            node.offsetWidth,
-            rect.left,
-            e.clientY,
-            node.offsetHeight,
-            rect.top
-        );
+		e.stopPropagation();
+		addClassIfMissing();
 
-        const ripple = document.createElement("div");
-        ripple.classList.add("ripple");
+		const rect = node.getBoundingClientRect();
+		const radius = findFurthestPoint(
+			e.clientX,
+			node.offsetWidth,
+			rect.left,
+			e.clientY,
+			node.offsetHeight,
+			rect.top
+		);
 
-        let size = radius * 2;
-        let top = e.clientY - rect.top - radius;
-        let left = e.clientX - rect.left - radius;
+		const ripple = document.createElement('div');
+		ripple.classList.add('ripple');
 
-        if (maximumRadius && size > maximumRadius) {
-            size = maximumRadius * 2;
-            top = e.clientY - rect.top - maximumRadius;
-            left = e.clientX - rect.left - maximumRadius;
-        }
+		let size = radius * 2;
+		let top = e.clientY - rect.top - radius;
+		let left = e.clientX - rect.left - radius;
 
-        ripple.style.left = left + "px";
-        ripple.style.top = top + "px";
-        ripple.style.width = ripple.style.height = size + "px";
+		if (maximumRadius && size > maximumRadius) {
+			size = maximumRadius * 2;
+			top = e.clientY - rect.top - maximumRadius;
+			left = e.clientX - rect.left - maximumRadius;
+		}
 
-        node.appendChild(ripple);
+		ripple.style.left = left + 'px';
+		ripple.style.top = top + 'px';
+		ripple.style.width = ripple.style.height = size + 'px';
 
-        const removeRipple = () => {
-            const timeOutDuration = options?.duration
-                ? options.duration * 1000
-                : 1000;
+		node.appendChild(ripple);
 
-            setTimeout(() => {
-                if (ripple) ripple.style.opacity = "0";
-            }, timeOutDuration / 4);
+		const removeRipple = () => {
+			const timeOutDuration = options?.duration ? options.duration * 1000 : 1000;
 
-            setTimeout(() => {
-                if (ripple && ripple.parentNode === node) {
-                    ripple.remove();
-                }
-            }, timeOutDuration);
-        };
+			setTimeout(() => {
+				if (ripple) ripple.style.opacity = '0';
+			}, timeOutDuration / 4);
 
-        OUTEVENTS.forEach((event) => {
-            addEvent(node, event, removeRipple);
-        });
-    };
+			setTimeout(() => {
+				if (ripple && ripple.parentNode === node) {
+					ripple.remove();
+				}
+			}, timeOutDuration);
+		};
 
-    // Initialize
-    addClassIfMissing();
-    setOptions(options);
+		OUTEVENTS.forEach((event) => {
+			addEvent(node, event, removeRipple);
+		});
+	};
 
-    // Add event listeners
-    INEVENTS.forEach((event) => {
-        addEvent(node, event, createRipple);
-    });
+	// Initialize
+	addClassIfMissing();
+	setOptions(options);
 
-    // Cleanup on destroy
-    onDestroy(() => {
-        INEVENTS.forEach((event) => {
-            removeEvent(node, event, createRipple);
-        });
-    });
+	// Add event listeners
+	INEVENTS.forEach((event) => {
+		addEvent(node, event, createRipple);
+	});
 
-    return {
-        update(newOptions: RippleOptions) {
-            options = newOptions;
-            setOptions(newOptions);
-        }
-    };
+	// Cleanup on destroy
+	onDestroy(() => {
+		INEVENTS.forEach((event) => {
+			removeEvent(node, event, createRipple);
+		});
+	});
+
+	return {
+		update(newOptions: RippleOptions) {
+			options = newOptions;
+			setOptions(newOptions);
+		}
+	};
 }

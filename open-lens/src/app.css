@@ -35,38 +35,38 @@
 }
 
 @layer utilities {
-    .bs-container {
-        @apply w-full px-3 mx-auto bs-sm:max-w-bs-sm bs-md:max-w-bs-md bs-lg:max-w-bs-lg bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
-    }
+	.bs-container {
+		@apply mx-auto w-full px-3 bs-sm:max-w-bs-sm bs-md:max-w-bs-md bs-lg:max-w-bs-lg bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
+	}
 
 	.bs-container-sm {
-		@apply w-full px-3 mx-auto bs-sm:max-w-bs-sm bs-md:max-w-bs-md bs-lg:max-w-bs-lg bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
+		@apply mx-auto w-full px-3 bs-sm:max-w-bs-sm bs-md:max-w-bs-md bs-lg:max-w-bs-lg bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
 	}
 
 	.bs-container-md {
-		@apply w-full px-3 mx-auto bs-md:max-w-bs-md bs-lg:max-w-bs-lg bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
+		@apply mx-auto w-full px-3 bs-md:max-w-bs-md bs-lg:max-w-bs-lg bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
 	}
 
 	.bs-container-lg {
-		@apply w-full px-3 mx-auto bs-lg:max-w-bs-lg bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
+		@apply mx-auto w-full px-3 bs-lg:max-w-bs-lg bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
 	}
 
 	.bs-container-xl {
-		@apply w-full px-3 mx-auto bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
+		@apply mx-auto w-full px-3 bs-xl:max-w-bs-xl bs-2xl:max-w-bs-2xl;
 	}
 
 	.bs-container-2xl {
-		@apply w-full px-3 mx-auto bs-2xl:max-w-bs-2xl;
+		@apply mx-auto w-full px-3 bs-2xl:max-w-bs-2xl;
 	}
 
 	.bs-container-fluid {
-		@apply w-full px-3 mx-auto;
+		@apply mx-auto w-full px-3;
 	}
 }
 
-input[type="search"]::-webkit-search-decoration,
-input[type="search"]::-webkit-search-cancel-button,
-input[type="search"]::-webkit-search-results-button,
-input[type="search"]::-webkit-search-results-decoration {
-  -webkit-appearance:none;
+input[type='search']::-webkit-search-decoration,
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-results-button,
+input[type='search']::-webkit-search-results-decoration {
+	-webkit-appearance: none;
 }
