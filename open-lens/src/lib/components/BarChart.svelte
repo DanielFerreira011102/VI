@@ -10,17 +10,19 @@
 		PopupPosition
 	} from '$lib/types/chart';
 
-	// Remove width and height props since we'll calculate dynamically
 	export let data: DataPoint[] = [];
 	export let series: string[] = [];
 	export let colors: string[] = [];
-	export let popupTemplate: (item: DataPoint) => string = (item) => `Value: ${item.value}`;
+	export let popupTemplate: (item: DataPoint, series: string) => string = (item, series) => `
+      <div class="bg-white shadow-lg rounded p-2">
+        ${series}: ${item[series]}
+      </div>
+    `;
 
-	// Rest of the props remain the same...
 	export let xAxisLabel = 'x';
 	export let xAxisConfig: AxisConfig = {
 		interval: 1,
-		format: (value) => value.toString(),
+		format: (value: any) => value?.toString() || '',
 		rotation: 0,
 		fontSize: 12,
 		padding: 20,
@@ -47,6 +49,7 @@
 	};
 
 	let chart: HTMLDivElement;
+	let popup: HTMLDivElement;
 	let svg: SVGSVGElement;
 	let pointer: PointerState = { x: 0, y: [], show: false, data: null, index: -1 };
 	let containerWidth: number;
@@ -56,7 +59,7 @@
 		top: 20,
 		right: 30,
 		bottom: xAxisConfig.padding + xAxisConfig.fontSize,
-		left: yAxisConfig.padding + yAxisConfig.fontSize * 3
+		left: 30
 	};
 
 	$: actualWidth = containerWidth || 0;
@@ -65,9 +68,15 @@
 	$: innerWidth = actualWidth - margin.left - margin.right;
 	$: innerHeight = actualHeight - margin.top - margin.bottom;
 
-	$: xScale = (x: number) => {
-		const range = data.length - 1;
-		return margin.left + (x * innerWidth) / range;
+	// Calculate total width needed for all bars with spacing
+	$: totalBarWidth = innerWidth * 0.75;
+	$: barSpacing = totalBarWidth * 0.05;
+	$: barWidth = (totalBarWidth - barSpacing * (series.length - 1)) / series.length;
+	$: groupStartX = margin.left + (innerWidth - totalBarWidth) / 2; // Center the group
+
+	// Update xScale to include spacing
+	$: xScale = (seriesIndex: number) => {
+		return groupStartX + seriesIndex * (barWidth + barSpacing);
 	};
 
 	$: yScale = (y: number) => {
@@ -83,15 +92,7 @@
 		(_, i) => yAxisConfig.min + i * yAxisConfig.interval
 	);
 
-	$: xLabels = data
-		.map((d, i) => ({
-			value: d[xAxisLabel],
-			x: xScale(i),
-			show: i % xAxisConfig.interval === 0
-		}))
-		.filter((label) => label.show)
-		.filter((label, i) => xAxisConfig.filter(label.value, i));
-
+	// Add this calculation for yLabels
 	$: yLabels = yValues
 		.map((value, i) => ({
 			value,
@@ -100,15 +101,8 @@
 		}))
 		.filter((label) => label.show);
 
-	$: linePath = (seriesName: string) => {
-		return data
-			.map((d, i) => {
-				const x = xScale(i);
-				const y = yScale(d[seriesName]);
-				return `${i === 0 ? 'M' : 'L'}${x},${y}`;
-			})
-			.join('');
-	};
+	// Center x-axis label
+	$: xLabelX = margin.left + innerWidth / 2;
 
 	let popupDimensions: Dimensions = { width: 0, height: 0 };
 
@@ -131,39 +125,22 @@
 
 		const padding = 16;
 
-		// Default position (left-biased)
-		let left = pointer.x - popup.width - padding;
-		let top = margin.top + padding;
-
-		// If too close to left edge, position on right side of pointer
-		if (left < margin.left + padding) {
-			left = pointer.x + padding;
-		}
+		let left = pointer.x - popup.width / 2;
+		let top = Math.min(...pointer.y) - popup.height - padding;
 
 		// Ensure popup doesn't overflow right edge
-		if (left + popup.width > width - margin.right - padding) {
+		if (left + popup.width > width - margin.right) {
 			left = width - margin.right - popup.width - padding;
 		}
 
 		// Ensure popup doesn't overflow left edge
-		if (left < margin.left + padding) {
+		if (left < margin.left) {
 			left = margin.left + padding;
 		}
 
-		// Calculate vertical position
-		const pointerVerticalCenter = Math.min(...pointer.y);
-
-		// Position above points if there's room
-		if (pointerVerticalCenter - popup.height - padding > margin.top) {
-			top = pointerVerticalCenter - popup.height - padding;
-		}
-		// Otherwise position below points if there's room
-		else if (pointerVerticalCenter + popup.height + padding < height - margin.bottom) {
-			top = pointerVerticalCenter + padding;
-		}
-		// Fallback to top of chart if no good position found
-		else {
-			top = margin.top + padding;
+		// If popup would go above chart, position it below the bar
+		if (top < margin.top) {
+			top = Math.max(...pointer.y) + padding;
 		}
 
 		return { left, top };
@@ -177,20 +154,38 @@
 		if (!svg) return;
 
 		const rect = svg.getBoundingClientRect();
-		const x = event.clientX - rect.left - margin.left;
-		const index = Math.round((x * (data.length - 1)) / innerWidth);
+		const mouseX = event.clientX - rect.left;
+		const mouseY = event.clientY - rect.top;
 
-		if (index >= 0 && index < data.length) {
-			const item = data[index];
-			const seriesY = series.map((s) => yScale(item[s]));
+		// Find which bar was clicked
+		let found = false;
 
-			pointer = {
-				x: xScale(index),
-				y: seriesY,
-				show: true,
-				data: item,
-				index
-			};
+		for (let j = 0; j < series.length; j++) {
+			const barX = xScale(j);
+			const barY = yScale(data[0][series[j]]);
+			const barHeight = actualHeight - margin.bottom - barY;
+
+			if (
+				mouseX >= barX &&
+				mouseX <= barX + barWidth &&
+				mouseY >= barY &&
+				mouseY <= barY + barHeight
+			) {
+				pointer = {
+					x: barX + barWidth / 2,
+					y: [barY],
+					show: true,
+					data: data[0],
+					index: j,
+					series: series[j] // Store which series (bar) is being hovered
+				};
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			pointer.show = false;
 		}
 	}
 
@@ -227,7 +222,7 @@
 	on:keydown={handleKeyDown}
 	role="button"
 	tabindex="0"
-	aria-label="Interactive line chart visualization"
+	aria-label="Interactive bar chart visualization"
 >
 	{#if actualWidth > 0 && actualHeight > 0}
 		<svg width={actualWidth} height={actualHeight} bind:this={svg} role="presentation">
@@ -282,86 +277,131 @@
 				</text>
 			{/each}
 
-			<!-- X-axis labels -->
-			{#each xLabels as label}
-				<text
-					x={label.x}
-					y={actualHeight - margin.bottom + xAxisConfig.padding}
-					text-anchor="middle"
-					font-size={xAxisConfig.fontSize}
-					fill={xAxisConfig.color}
-					transform="rotate({xAxisConfig.rotation}, {label.x}, {actualHeight -
-						margin.bottom +
-						xAxisConfig.padding})"
-				>
-					{xAxisConfig.format(label.value)}
-				</text>
-			{/each}
+			<!-- X-axis label -->
+			<text
+				x={xLabelX}
+				y={actualHeight - margin.bottom / 3}
+				text-anchor="middle"
+				font-size={xAxisConfig.fontSize}
+				fill={xAxisConfig.color}
+			>
+				{xAxisLabel}
+			</text>
 
-			<!-- Data lines -->
-			{#each series as seriesName, i}
-				<path d={linePath(seriesName)} stroke={colors[i]} stroke-width="4" fill="none" />
-			{/each}
+			<!-- Bars -->
+			{#each series as seriesName, seriesIndex}
+				{@const barX = xScale(seriesIndex)}
+				{@const barY = yScale(data[0][seriesName])}
+				{@const barHeight = actualHeight - margin.bottom - barY}
+				{@const isHovered = pointer.show && pointer.index === seriesIndex}
 
-			<!-- Focus point indicators -->
-			{#if pointer.show}
-				<!-- Vertical line -->
-				<line
-					x1={pointer.x}
-					y1={margin.top}
-					x2={pointer.x}
-					y2={actualHeight - margin.bottom}
-					stroke="#e0e0e0"
-					stroke-width="1"
-					stroke-opacity="0.3"
-				/>
+				<g>
+					<!-- Main bar -->
+					<rect x={barX} y={barY} width={barWidth} height={barHeight} fill={colors[seriesIndex]} />
 
-				<!-- Focus points with ripple effect -->
-				{#each series as seriesName, i}
-					<g>
-						<circle
-							cx={pointer.x}
-							cy={pointer.y[i]}
-							r="6.5"
+					<!-- Hover effect - modified to stop at x-axis -->
+					{#if isHovered}
+						<!-- Right border -->
+						<line
+							x1={barX + barWidth + 0.5}
+							y1={barY - 0.5}
+							x2={barX + barWidth + 0.5}
+							y2={actualHeight - margin.bottom}
+							stroke="#000000"
+							stroke-width="1"
+							stroke-opacity="0.3"
+						/>
+						<line
+							x1={barX + barWidth + 1.5}
+							y1={barY - 1.5}
+							x2={barX + barWidth + 1.5}
+							y2={actualHeight - margin.bottom}
+							stroke="#000000"
+							stroke-width="1"
+							stroke-opacity="0.15"
+						/>
+						<line
+							x1={barX + barWidth + 2.5}
+							y1={barY - 2.5}
+							x2={barX + barWidth + 2.5}
+							y2={actualHeight - margin.bottom}
 							stroke="#000000"
 							stroke-width="1"
 							stroke-opacity="0.05"
-							fill="none"
 						/>
-						<circle
-							cx={pointer.x}
-							cy={pointer.y[i]}
-							r="5.5"
+
+						<!-- Left border -->
+						<line
+							x1={barX - 0.5}
+							y1={barY - 0.5}
+							x2={barX - 0.5}
+							y2={actualHeight - margin.bottom}
 							stroke="#000000"
 							stroke-width="1"
-							stroke-opacity="0.1"
-							fill="none"
+							stroke-opacity="0.3"
 						/>
-						<circle
-							cx={pointer.x}
-							cy={pointer.y[i]}
-							r="4.5"
+						<line
+							x1={barX - 1.5}
+							y1={barY - 1.5}
+							x2={barX - 1.5}
+							y2={actualHeight - margin.bottom}
 							stroke="#000000"
 							stroke-width="1"
-							stroke-opacity="0.25"
-							fill="none"
+							stroke-opacity="0.15"
 						/>
-						<circle cx={pointer.x} cy={pointer.y[i]} r="4" fill={colors[i]} />
-					</g>
-				{/each}
-			{/if}
+						<line
+							x1={barX - 2.5}
+							y1={barY - 2.5}
+							x2={barX - 2.5}
+							y2={actualHeight - margin.bottom}
+							stroke="#000000"
+							stroke-width="1"
+							stroke-opacity="0.05"
+						/>
+
+						<!-- Top border -->
+						<line
+							x1={barX - 0.5}
+							y1={barY - 0.5}
+							x2={barX + barWidth + 0.5}
+							y2={barY - 0.5}
+							stroke="#000000"
+							stroke-width="1"
+							stroke-opacity="0.3"
+						/>
+						<line
+							x1={barX - 1.5}
+							y1={barY - 1.5}
+							x2={barX + barWidth + 1.5}
+							y2={barY - 1.5}
+							stroke="#000000"
+							stroke-width="1"
+							stroke-opacity="0.15"
+						/>
+						<line
+							x1={barX - 2.5}
+							y1={barY - 2.5}
+							x2={barX + barWidth + 2.5}
+							y2={barY - 2.5}
+							stroke="#000000"
+							stroke-width="1"
+							stroke-opacity="0.05"
+						/>
+					{/if}
+				</g>
+			{/each}
 		</svg>
 	{/if}
 
 	<!-- Popup -->
-	{#if pointer.show && pointer.data}
+	{#if pointer.show && pointer.data && pointer.series}
 		<div
 			use:measure={handleMeasure}
 			class="pointer-events-none absolute"
 			style="left: {popupPosition.left}px; top: {popupPosition.top}px;"
 			role="tooltip"
 		>
-			{@html popupTemplate(pointer.data)}
+			{@html popupTemplate(pointer.data, pointer.series)}
 		</div>
 	{/if}
 </div>
