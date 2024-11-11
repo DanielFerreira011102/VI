@@ -5,6 +5,7 @@
 	import TermIndicator from '$lib/components/TermIndicator.svelte';
 	import LineChart from '$lib/components/LineChart.svelte';
 	import type { AxisConfig, YAxisConfig, DataPoint } from '$lib/types/lineChart';
+	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte'
 
 	onMount(() => termStore.initialize($page.url.search));
 
@@ -64,27 +65,46 @@
 	`;
 </script>
 
-<div class="bg-blue-500 bg-opacity-10">
-	<div class="container mx-auto flex items-center justify-between p-2">
+<div class="grid space-y-4 lg:space-y-2 bg-blue-500 bg-opacity-10 py-6">
+	<div class="container mx-auto flex items-center justify-between px-2">
 		<TermIndicator />
 	</div>
+	<div class="container mx-auto flex items-center justify-between px-2">
+		<div class="h-16 w-full bg-white rounded-2xl p-4">
+		</div>
+	</div>
+
+
 </div>
 
-<div class="bg-blue-400 bg-opacity-10">
-	<div class="container mx-auto flex items-center justify-between p-2">
-		<div class="w-full bg-white rounded-xl p-4">
-			<div class="w-full">
-				<LineChart
-				width={900}
-				height={300}
-				{data}
-				series={['hello', 'bye']}
-				colors={['#4c8df6', '#e46962']}
-				{popupTemplate}
-				xAxisLabel="year"
-				{xAxisConfig}
-				{yAxisConfig}
-				/>
+<div class="bg-blue-400 bg-opacity-10 py-4">
+	<div class="container mx-auto flex items-center justify-between p-4">
+		<div class="w-full bg-white rounded-2xl p-4">
+			<div class="flex items-center justify-between p-4">
+				<div class="flex items-center space-x-4">
+					<h1 class="text-2xl leading-6">Some nice title</h1>
+					<button class="w-8 h-8 text-gray-500">
+						<MdHelpOutline />
+					</button>
+				</div>
+			</div>
+			<div class="w-full grid grid-cols-12 gap-4 pt-16 pb-12 px-4">
+				<div class="col-span-2">
+					<div class="flex items-center justify-between">
+						<h1 class="text-lg">Bar</h1>
+					</div>
+				</div>
+				<div class="col-span-10 h-72">
+					<LineChart
+					{data}
+					series={['hello', 'bye']}
+					colors={['#4c8df6', '#e46962']}
+					{popupTemplate}
+					xAxisLabel="year"
+					{xAxisConfig}
+					{yAxisConfig}
+					/>
+				</div>
 			</div>
 		</div>
 	</div>

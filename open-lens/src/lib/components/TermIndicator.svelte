@@ -65,7 +65,7 @@
 </script>
 
 <div
-	class="flex w-full flex-col items-center space-x-0 space-y-2 lg:my-6 lg:flex-row lg:space-x-2 lg:space-y-0"
+	class="flex w-full flex-col items-center space-x-0 space-y-2 lg:flex-row lg:space-x-2 lg:space-y-0"
 >
 	{#each terms as term (term.id)}
 		{#if editingId === term.id}

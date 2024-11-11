@@ -3,14 +3,13 @@
   import { measure } from '$lib/actions/measure';
   import type { AxisConfig, YAxisConfig, DataPoint, PointerState, Dimensions, PopupPosition } from '$lib/types/lineChart';
   
-  export let width: number;
-  export let height: number;
+  // Remove width and height props since we'll calculate dynamically
   export let data: DataPoint[] = [];
   export let series: string[] = [];
   export let colors: string[] = [];
   export let popupTemplate: (item: DataPoint) => string = (item) => `Value: ${item.value}`;
   
-  // Axis configuration
+  // Rest of the props remain the same...
   export let xAxisLabel = 'x';
   export let xAxisConfig: AxisConfig = {
     interval: 1,
@@ -54,8 +53,8 @@
     left: yAxisConfig.padding + yAxisConfig.fontSize * 3
   };
   
-  $: actualWidth = containerWidth || width;
-  $: actualHeight = containerHeight || height;
+  $: actualWidth = containerWidth || 0;
+  $: actualHeight = containerHeight || 0;
   
   $: innerWidth = actualWidth - margin.left - margin.right;
   $: innerHeight = actualHeight - margin.top - margin.bottom;
@@ -200,13 +199,14 @@
     if (!chart) return;
     const rect = chart.getBoundingClientRect();
     containerWidth = rect.width;
-    containerHeight = height * (rect.width / width); // Maintain aspect ratio
+    containerHeight = rect.height;
   }
   
   onMount(() => {
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(chart);
+    return () => resizeObserver.disconnect();
   });
 </script>
 
@@ -220,12 +220,14 @@
   tabindex="0"
   aria-label="Interactive line chart visualization"
 >
+{#if actualWidth > 0 && actualHeight > 0}
   <svg
     width={actualWidth}
     height={actualHeight}
     bind:this={svg}
     role="presentation"
   >
+
     <!-- Grid lines -->
     {#if yAxisConfig.gridLines}
       {#each yValues as value}
@@ -354,6 +356,7 @@
       {/each}
     {/if}
   </svg>
+{/if}
   
   <!-- Popup -->
   {#if pointer.show && pointer.data}
