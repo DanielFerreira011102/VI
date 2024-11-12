@@ -23,7 +23,8 @@
 		selectedOption,
 		onSelect,
 		onClose,
-		enableKeyboardHighlight = false
+		enableKeyboardHighlight = true,
+		autoFocus = false,
 	} = $props<{
 		isOpen: boolean;
 		anchor: HTMLElement;
@@ -44,6 +45,7 @@
 		onSelect: (option: Option) => void;
 		onClose: () => void;
 		enableKeyboardHighlight?: boolean;
+		autoFocus?: boolean;
 	}>();
 
 	let highlightedIndex = $state(
@@ -97,7 +99,9 @@
 	$effect(() => {
 		if (isOpen) {
 			highlightedIndex = getCurrentIndex();
-			dropdownEl?.focus();
+			if (autoFocus) {
+				dropdownEl?.focus();
+			}
 		}
 	});
 </script>

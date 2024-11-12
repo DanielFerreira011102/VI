@@ -30,7 +30,8 @@
 		optionClassName = '',
 
 		// Optional props
-		enableKeyboardHighlight = false
+		enableKeyboardHighlight = true,
+		autoFocusDropdown = false,
 	} = $props<{
 		options: Option[];
 		onChange: (option: string) => void;
@@ -50,6 +51,7 @@
 		dropdownClassName?: string;
 		optionClassName?: string;
 		enableKeyboardHighlight?: boolean;
+		autoFocusDropdown?: boolean;
 	}>();
 
 	let selectedOption = $state<{ value: string; label: string }>(options[0]);
@@ -106,6 +108,7 @@
 	<Dropdown
 		{isOpen}
 		{enableKeyboardHighlight}
+		autoFocus={autoFocusDropdown}
 		anchor={buttonEl}
 		minWidth={dropdownMinWidth}
 		padding={dropdownPadding}

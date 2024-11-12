@@ -19,7 +19,7 @@
 		cited_by_count: number;
 	};
 
-	interface ChartState {
+	type ChartState = {
 		lineData: DataPoint[];
 		averageData: DataPoint[];
 		termValues: string[];
@@ -55,7 +55,14 @@
 		fontSize: 14,
 		padding: 15,
 		filter: (value, index) => index > 0,
-		format: (value) => value.toString(),
+		format: (value: number) => {
+			if (value >= 1000000) {
+				return (value / 1000000).toFixed(1) + 'M';
+			} else if (value >= 1000) {
+				return (value / 1000).toFixed(1) + 'K';
+			}
+			return value.toString();
+		},		
 		gridLines: true,
 		showAxis: false,
 		gridLineColor: '#e0e0e0',
@@ -240,6 +247,7 @@
 					{ value: 'citations', label: 'Citations' },
 					{ value: 'avgCitations', label: 'Average Citations' }
 				]}
+				autoFocusDropdown={true}
 				onChange={(value) => (selectedMetric = value as MetricType)}
 				buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
 				dropdownClassName="min-w-48"
@@ -269,6 +277,7 @@
 						{ value: 'citations', label: 'Citations' },
 						{ value: 'avgCitations', label: 'Average Citations' }
 					]}
+					autoFocusDropdown={true}
 					onChange={(value) => (selectedMetric = value as MetricType)}
 					buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
 					dropdownClassName="min-w-48"
