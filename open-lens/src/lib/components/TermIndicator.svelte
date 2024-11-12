@@ -1,9 +1,14 @@
 <script lang="ts">
 	import { termStore } from '$lib/stores/termStore';
 	import type { Term } from '$lib/types/term';
+	import type { AutocompleteConfig } from '$lib/types/autocomplete';
 	import SearchTerm from '$lib/components/SearchTerm.svelte';
 	import SelectedTerm from '$lib/components/SelectedTerm.svelte';
 	import CompareTerm from '$lib/components/CompareTerm.svelte';
+
+	const props = $props<{
+		autocomplete?: AutocompleteConfig;
+	}>();
 
 	let terms = $state<Term[]>([]);
 	let editingId = $state<string | null>(null);
@@ -71,6 +76,7 @@
 		{#if editingId === term.id}
 			<SearchTerm
 				{term}
+				autocomplete={props.autocomplete}
 				wasCompare={wasCompareMap[term.id]}
 				onSubmit={(value) => handleSubmit(term.id, value)}
 				onDelete={() => handleDelete(term.id)}
@@ -88,6 +94,7 @@
 		{:else}
 			<SearchTerm
 				{term}
+				autocomplete={props.autocomplete}
 				wasCompare={wasCompareMap[term.id]}
 				onSubmit={(value) => handleSubmit(term.id, value)}
 				onDelete={() => handleDelete(term.id)}

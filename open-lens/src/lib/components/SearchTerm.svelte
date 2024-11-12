@@ -1,13 +1,15 @@
 <script lang="ts">
+	import type { AutocompleteConfig } from '$lib/types/autocomplete';
 	import type { Term } from '$lib/types/term';
 	import MdClose from 'svelte-icons/md/MdClose.svelte';
-	import { onMount } from 'svelte';
 
 	const props = $props<{
 		term: Term;
 		wasCompare?: boolean;
+		autocomplete?: AutocompleteConfig;
 		onSubmit: (value: string) => void;
 		onDelete: () => void;
+		onEdit?: () => void;
 		onBlur: (value: string) => void;
 		onRevert: () => void;
 	}>();
@@ -16,22 +18,18 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 	let isProcessing = $state(false);
 
+	// Auto-focus input on mount
 	$effect(() => {
-		if (inputElement) {
-			setTimeout(() => {
-				inputElement?.focus();
-			}, 0);
-		}
+		inputElement?.focus();
 	});
 
-	const handleKeydown = async (event: KeyboardEvent) => {
-		if (event.key !== 'Enter' || isProcessing) return;
+	const handleSubmit = async (value: string) => {
+		if (isProcessing) return;
 
-		event.preventDefault();
 		isProcessing = true;
-
 		try {
-			const trimmedValue = searchValue.trim();
+			const trimmedValue = value.trim();
+
 			if (!trimmedValue) {
 				if (props.wasCompare) {
 					props.onRevert();
@@ -40,19 +38,29 @@
 				} else {
 					searchValue = '';
 				}
-			} else {
-				props.onSubmit(trimmedValue);
+				return;
 			}
+
+			props.onSubmit(trimmedValue);
 		} finally {
+			// Prevent rapid re-submissions
 			setTimeout(() => {
 				isProcessing = false;
 			}, 100);
 		}
 	};
 
+	const handleKeydown = (event: KeyboardEvent) => {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			handleSubmit(searchValue);
+		}
+	};
+
 	const handleBlur = (event: FocusEvent) => {
 		if (isProcessing) return;
 
+		// Don't trigger blur when clicking clear button
 		const relatedTarget = event.relatedTarget as HTMLElement;
 		if (relatedTarget?.dataset.action === 'clear') return;
 
@@ -85,6 +93,7 @@
 		class="relative z-10 h-32 w-full border-none bg-inherit pl-6 pr-16 text-xl leading-6 text-gray-900 outline-none"
 		placeholder="Add a search term"
 	/>
+
 	{#if searchValue}
 		<button
 			data-action="clear"

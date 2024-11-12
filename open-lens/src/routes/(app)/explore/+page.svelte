@@ -9,12 +9,16 @@
 	import LineChart from '$lib/components/LineChart.svelte';
 	import BarChart from '$lib/components/BarChart.svelte';
 	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
-	
-	let { data } = $props<{ data: PageData }>();
-	let terms = $state<Term[]>([]);
-	let selectedTerms = $derived(terms.filter(term => term.type === 'selected'));
-	
-	// Chart data interface
+	import Select from '$lib/components/Select.svelte';
+
+	// Types
+	type MetricType = 'works' | 'citations' | 'avgCitations';
+	type YearData = {
+		year: number;
+		works_count: number;
+		cited_by_count: number;
+	};
+
 	interface ChartState {
 		lineData: DataPoint[];
 		averageData: DataPoint[];
@@ -23,11 +27,17 @@
 		lineYAxisConfig: YAxisConfig;
 		barYAxisConfig: YAxisConfig;
 	}
-	
-	// Base configurations
+
+	// Component state
+	let { data } = $props<{ data: PageData }>();
+	let terms = $state<Term[]>([]);
+	let selectedTerms = $derived(terms.filter((term) => term.type === 'selected'));
+	let selectedMetric = $state<MetricType>('works');
+
+	// Chart configurations
 	const xAxisConfig: AxisConfig = {
 		interval: 1,
-		format: value => value.toString(),
+		format: (value) => value.toString(),
 		rotation: 0,
 		fontSize: 14,
 		padding: 25,
@@ -36,17 +46,16 @@
 		showAxis: true,
 		axisColor: '#9e9e9e'
 	};
-		
-	// Separate Y-axis configurations for line and bar charts
-	const baseLineYAxisConfig: YAxisConfig = {
+
+	const baseYAxisConfig: YAxisConfig = {
 		min: 0,
 		max: 120,
 		interval: 30,
 		rotation: 0,
 		fontSize: 14,
 		padding: 15,
-		format: value => value.toString(),
-		filter: (_, index) => index > 0, // Show labels except first
+		filter: (value, index) => index > 0,
+		format: (value) => value.toString(),
 		gridLines: true,
 		showAxis: false,
 		gridLineColor: '#e0e0e0',
@@ -54,22 +63,42 @@
 		axisColor: '#9e9e9e'
 	};
 
-	const baseBarYAxisConfig: YAxisConfig = {
-		...baseLineYAxisConfig,
-		filter: () => false // Hide all labels for bar chart
+	// Utility functions
+	const getMetricValue = (yearData: YearData | undefined, metric: MetricType): number => {
+		if (!yearData) return 0;
+
+		switch (metric) {
+			case 'works':
+				return yearData.works_count;
+			case 'citations':
+				return yearData.cited_by_count;
+			case 'avgCitations':
+				return yearData.works_count > 0 ? yearData.cited_by_count / yearData.works_count : 0;
+		}
 	};
-	
+
+	const getMetricLabel = (metric: MetricType): string => {
+		switch (metric) {
+			case 'works':
+				return 'Works';
+			case 'citations':
+				return 'Citations';
+			case 'avgCitations':
+				return 'Average Citations per Work';
+		}
+	};
+
 	// Initialize chart state
 	let chartState = $state<ChartState>({
 		lineData: [],
 		averageData: [],
 		termValues: [],
 		termColors: [],
-		lineYAxisConfig: baseLineYAxisConfig,
-		barYAxisConfig: baseBarYAxisConfig
+		lineYAxisConfig: { ...baseYAxisConfig, filter: (_, index) => index > 0 },
+		barYAxisConfig: { ...baseYAxisConfig, filter: () => false }
 	});
-	
-	// Update chart data when selected terms change
+
+	// Update chart data when selected terms or metric changes
 	$effect(() => {
 		if (!selectedTerms.length || !data) {
 			chartState = {
@@ -77,43 +106,46 @@
 				averageData: [],
 				termValues: [],
 				termColors: [],
-				lineYAxisConfig: baseLineYAxisConfig,
-				barYAxisConfig: baseBarYAxisConfig
+				lineYAxisConfig: { ...baseYAxisConfig, filter: (_, index) => index > 0 },
+				barYAxisConfig: { ...baseYAxisConfig, filter: () => false }
 			};
 			return;
 		}
-	
-		// Get year data
+
+		// Collect all years from selected terms
 		const yearSet = new Set<number>();
-		selectedTerms.forEach(term => {
-			data[term.value]?.counts_by_year?.forEach(count => yearSet.add(count.year));
+		selectedTerms.forEach((term) => {
+			data[term.value]?.counts_by_year?.forEach((count) => yearSet.add(count.year));
 		});
-	
-		const lineData = Array.from(yearSet).sort().map(year => {
-			const point: DataPoint = { year };
-			selectedTerms.forEach(term => {
-				const yearData = data[term.value]?.counts_by_year?.find(c => c.year === year);
-				point[term.value] = yearData?.works_count ?? 0;
+
+		// Generate line chart data
+		const lineData = Array.from(yearSet)
+			.sort()
+			.map((year) => {
+				const point: DataPoint = { year };
+				selectedTerms.forEach((term) => {
+					const yearData = data[term.value]?.counts_by_year?.find((c) => c.year === year);
+					point[term.value] = getMetricValue(yearData, selectedMetric);
+				});
+				return point;
 			});
-			return point;
-		});
-	
+
 		// Calculate max value for y-axis
 		const maxValue = Math.max(
-			...lineData.flatMap(point => 
-				Object.values(point).filter(value => typeof value === 'number' && value !== point.year)
+			...lineData.flatMap((point) =>
+				Object.values(point).filter((value) => typeof value === 'number' && value !== point.year)
 			),
-			1 // Ensure we always have a positive max value
+			1
 		);
 
 		const max = Math.ceil(maxValue / 100) * 100;
-	    const interval = Math.ceil(max / 4);
+		const interval = Math.ceil(max / 4);
 
-		// Calculate averages
+		// Calculate averages for bar chart
 		const averages: DataPoint = {
 			identifier: 'Average',
 			...Object.fromEntries(
-				selectedTerms.map(term => [
+				selectedTerms.map((term) => [
 					term.value,
 					Math.round(
 						lineData.reduce((sum, point) => sum + (point[term.value] ?? 0), 0) / lineData.length
@@ -121,92 +153,156 @@
 				])
 			)
 		};
-	
-		// Update chart state with separate axis configurations
+
+		// Update chart state
 		chartState = {
 			lineData,
 			averageData: [averages],
-			termValues: selectedTerms.map(term => term.value),
-			termColors: selectedTerms.map(term => term.color ?? '#000'),
+			termValues: selectedTerms.map((term) => term.value),
+			termColors: selectedTerms.map((term) => term.color ?? '#000'),
 			lineYAxisConfig: {
-				...baseLineYAxisConfig,
+				...baseYAxisConfig,
+				filter: (_, index) => index > 0,
 				max,
 				interval
 			},
 			barYAxisConfig: {
-				...baseBarYAxisConfig,
+				...baseYAxisConfig,
+				filter: () => false,
 				max,
 				interval
 			}
 		};
 	});
-	
-	// Popup template
-	const createPopup = (item: DataPoint, title: string) => `
-		<div class="bg-white bg-opacity-90 border border-gray-200 rounded shadow-md p-3 w-48">
-			<div class="pb-2 font-semibold">${title}</div>
-			${selectedTerms.map(term => `
-				<div class="flex items-center justify-between h-4 mt-2">
-					<span>${term.value}</span>
-					<span style="color: ${term.color ?? '#000'}">${(item[term.value] ?? 0).toLocaleString()}</span>
-				</div>
-			`).join('')}
+
+	// Popup templates
+	const createLinePopup = (item: DataPoint) => `
+	<div class="bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72">
+		<div class="pb-2 font-semibold">${item.year}</div>
+		${selectedTerms
+			.map(
+				(term) => `
+		<div class="flex items-center justify-between h-4 mt-2">
+			<span class="truncate">${term.value}</span>
+			<span class="ml-4" style="color: ${term.color ?? '#000'}">${(item[term.value] ?? 0).toLocaleString()}</span>
+		</div>
+		`
+			)
+			.join('')}
+	</div>
+	`;
+
+	const createBarPopup = (item: DataPoint, series: string) => {
+		const term = selectedTerms.find((term) => term.value === series);
+		if (!term) return '';
+
+		return `
+		<div class="bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72">
+		<div class="pb-2 font-semibold">Average</div>
+		<div class="flex items-center justify-between h-4 mt-2">
+			<span class="truncate">${series}</span>
+			<span class="ml-4" style="color: ${term.color ?? '#000'}">${(item[series] ?? 0).toLocaleString()}</span>
+		</div>
 		</div>
 	`;
-	
+	};
+
 	// Initialize term store
 	onMount(() => termStore.initialize($page.url.search));
-	termStore.subscribe(value => {
+	termStore.subscribe((value) => {
 		terms = value;
 	});
-	</script>
-	
-	<div class="grid space-y-4 bg-blue-500 bg-opacity-10 py-6 lg:space-y-3">
-		<div class="container mx-auto flex items-center justify-between px-2">
-			<TermIndicator />
-		</div>
-		<div class="container mx-auto flex items-center justify-between px-2">
-			<div class="h-16 w-full rounded-2xl bg-white p-4"></div>
+</script>
+
+<div class="grid space-y-4 bg-blue-500 bg-opacity-10 py-6 lg:space-y-3">
+	<div class="container mx-auto flex items-center justify-between px-2">
+		<TermIndicator
+			autocomplete={{
+				enabled: true,
+				fetchSuggestions: async (query) => {
+					const response = await fetch(
+						`https://api.openalex.org/autocomplete/institutions?q=${encodeURIComponent(query)}`
+					);
+					const data = await response.json();
+					return data.results || [];
+				},
+				debounceMs: 300,
+				minChars: 2,
+				processResult: (result) => result.display_name
+			}}
+		/>
+	</div>
+	<div class="container mx-auto flex items-center justify-between px-2">
+		<div class="w-full rounded-2xl bg-white p-4">
+			<Select
+				options={[
+					{ value: 'works', label: 'Works' },
+					{ value: 'citations', label: 'Citations' },
+					{ value: 'avgCitations', label: 'Average Citations' }
+				]}
+				onChange={(value) => (selectedMetric = value as MetricType)}
+				buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
+				dropdownClassName="min-w-48"
+				dropdownPadding="1rem"
+				dropdownOptionHeight="3.5rem"
+				dropdownTop="-1rem"
+			/>
 		</div>
 	</div>
-	
-	<div class="bg-blue-400 bg-opacity-10 py-4">
-		<div class="container mx-auto flex items-center justify-between p-4">
-			<div class="w-full rounded-2xl bg-white p-4">
-				<div class="flex items-center justify-between p-4">
-					<div class="flex items-center space-x-4">
-						<h1 class="text-2xl leading-6">Some nice title</h1>
-						<button class="h-8 w-8 text-gray-500">
-							<MdHelpOutline />
-						</button>
+</div>
+
+<div class="bg-blue-400 bg-opacity-10 py-4">
+	<div class="container mx-auto flex items-center justify-between p-4">
+		<div class="w-full rounded-2xl bg-white p-4">
+			<div class="flex items-center justify-between p-4">
+				<div class="flex items-center space-x-4">
+					<h1 class="text-2xl leading-6 text-gray-900">
+						{getMetricLabel(selectedMetric)} Over Time
+					</h1>
+					<button class="h-8 w-8 text-gray-500">
+						<MdHelpOutline />
+					</button>
+				</div>
+				<Select
+					options={[
+						{ value: 'works', label: 'Works' },
+						{ value: 'citations', label: 'Citations' },
+						{ value: 'avgCitations', label: 'Average Citations' }
+					]}
+					onChange={(value) => (selectedMetric = value as MetricType)}
+					buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
+					dropdownClassName="min-w-48"
+					dropdownPadding="1rem"
+					dropdownOptionHeight="3.5rem"
+					dropdownTop="-1rem"
+				/>
+			</div>
+			<div class="grid w-full grid-cols-12 px-4 pb-12 pt-16">
+				{#if selectedTerms.length > 0}
+					<div class="col-span-2 h-72">
+						<BarChart
+							data={chartState.averageData}
+							series={chartState.termValues}
+							colors={chartState.termColors}
+							xAxisLabel="Average"
+							{xAxisConfig}
+							yAxisConfig={chartState.barYAxisConfig}
+							popupTemplate={createBarPopup}
+						/>
 					</div>
-				</div>
-				<div class="grid w-full grid-cols-12 px-4 pb-12 pt-16">
-					{#if selectedTerms.length > 0}
-						<div class="col-span-2 h-72">
-							<BarChart
-								data={chartState.averageData}
-								series={chartState.termValues}
-								colors={chartState.termColors}
-								xAxisLabel="Average"
-								{xAxisConfig}
-								yAxisConfig={chartState.barYAxisConfig}
-								popupTemplate={(item) => createPopup(item, 'Average')}
-							/>
-						</div>
-						<div class="col-span-10 h-72">
-							<LineChart
-								data={chartState.lineData}
-								series={chartState.termValues}
-								colors={chartState.termColors}
-								popupTemplate={(item) => createPopup(item, String(item.year))}
-								xAxisLabel="year"
-								{xAxisConfig}
-								yAxisConfig={chartState.lineYAxisConfig}
-							/>
-						</div>
-					{/if}
-				</div>
+					<div class="col-span-10 h-72">
+						<LineChart
+							data={chartState.lineData}
+							series={chartState.termValues}
+							colors={chartState.termColors}
+							popupTemplate={createLinePopup}
+							xAxisLabel="year"
+							{xAxisConfig}
+							yAxisConfig={chartState.lineYAxisConfig}
+						/>
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
+</div>
