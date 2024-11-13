@@ -14,7 +14,10 @@ function createTermStore() {
 	const { subscribe, set, update } = writable<Term[]>([createInitialTerm()]);
 
 	const updateURL = (terms: Term[]) => {
-		const selectedTerms = terms.filter((t) => t.type === 'selected').map((t) => t.value);
+		console.log('Updating URL with terms:', terms);
+		const selectedTerms = terms
+			.filter((t) => t.type === 'selected')
+			.map((t) => encodeURIComponent(t.value));
 		const queryString = selectedTerms.length ? `?q=${selectedTerms.join(',')}` : '';
 		goto(`/explore${queryString}`, { replaceState: true });
 	};

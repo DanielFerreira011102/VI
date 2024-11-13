@@ -31,7 +31,7 @@
 
 		// Optional props
 		enableKeyboardHighlight = true,
-		autoFocusDropdown = false,
+		autoFocusDropdown = false
 	} = $props<{
 		options: Option[];
 		onChange: (option: string) => void;

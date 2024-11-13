@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import * as d3 from 'd3';
 	import { measure } from '$lib/actions/measure';
 	import type {
 		AxisConfig,
@@ -10,192 +11,363 @@
 		PopupPosition
 	} from '$lib/types/chart';
 
-	export let data: DataPoint[] = [];
-	export let series: string[] = [];
-	export let colors: string[] = [];
-	export let popupTemplate: (item: DataPoint, series: string) => string = (item, series) => `
-      <div class="bg-white shadow-lg rounded p-2">
-        ${series}: ${item[series]}
-      </div>
-    `;
+	const props = $props<{
+		data?: DataPoint[];
+		series?: string[];
+		colors?: string[];
+		popupTemplate?: (item: DataPoint, series: string) => string;
+		xAxisLabel?: string;
+		xAxisConfig?: AxisConfig;
+		yAxisConfig?: YAxisConfig;
+		margins?: {
+			top?: number;
+			right?: number;
+			bottom?: number;
+			left?: number;
+		};
+	}>();
 
-	export let xAxisLabel = 'x';
-	export let xAxisConfig: AxisConfig = {
-		interval: 1,
-		format: (value: any) => value?.toString() || '',
-		rotation: 0,
-		fontSize: 12,
-		padding: 20,
-		filter: (value, index) => true,
-		color: '#9e9e9e',
-		showAxis: true,
-		axisColor: '#9e9e9e'
-	};
+	// Default values for props
+	const data = $derived(props.data ?? []);
+	const series = $derived(props.series ?? []);
+	const colors = $derived(props.colors ?? []);
+	const xAxisLabel = $derived(props.xAxisLabel ?? 'x');
 
-	export let yAxisConfig: YAxisConfig = {
-		min: 0,
-		max: 100,
-		interval: 25,
-		rotation: 0,
-		format: (value) => value.toString(),
-		fontSize: 12,
-		padding: 10,
-		filter: (value, index) => true,
-		gridLines: true,
-		gridLineColor: '#e0e0e0',
-		color: '#bdbdbd',
-		showAxis: true,
-		axisColor: '#9e9e9e'
-	};
+	const popupTemplate = $derived(
+		props.popupTemplate ??
+			((item: DataPoint, series: string) => `
+  <div class="bg-white shadow-lg rounded p-2">
+    ${series ? `${series}: ${item[series]}` : `Value: ${item.value}`}
+  </div>
+`)
+	);
 
+	const xAxisConfig = $derived(
+		props.xAxisConfig ?? {
+			interval: 1,
+			format: (value: any) => value?.toString() || '',
+			rotation: 0,
+			fontSize: 12,
+			padding: 20,
+			filter: (value: any, index: number) => true,
+			color: '#9e9e9e',
+			showAxis: true,
+			axisColor: '#9e9e9e'
+		}
+	);
+
+	const yAxisConfig = $derived(
+		props.yAxisConfig ?? {
+			min: 0,
+			max: 100,
+			interval: 25,
+			rotation: 0,
+			format: (value: number) => value.toString(),
+			fontSize: 12,
+			padding: 10,
+			filter: (value: number, index: number) => true,
+			gridLines: true,
+			gridLineColor: '#e0e0e0',
+			color: '#bdbdbd',
+			showAxis: true,
+			axisColor: '#9e9e9e'
+		}
+	);
+
+	// Local state
 	let chart: HTMLDivElement;
-	let popup: HTMLDivElement;
-	let svg: SVGSVGElement;
-	let pointer: PointerState = { x: 0, y: [], show: false, data: null, index: -1 };
-	let containerWidth: number;
-	let containerHeight: number;
+	let svgRef = $state<SVGSVGElement | null>(null);
+	let resizeObserver: ResizeObserver;
 
-	$: margin = {
-		top: 20,
-		right: 30,
-		bottom: xAxisConfig.padding + xAxisConfig.fontSize,
-		left: 30
-	};
+	let pointer = $state<
+		PointerState & {
+			series?: string;
+			categoryIndex?: number;
+			seriesIndex?: number;
+		}
+	>({
+		x: 0,
+		y: [],
+		show: false,
+		data: null,
+		index: -1
+	});
 
-	$: actualWidth = containerWidth || 0;
-	$: actualHeight = containerHeight || 0;
+	let containerWidth = $state(0);
+	let containerHeight = $state(0);
+	let popupDimensions = $state<Dimensions>({ width: 0, height: 0 });
 
-	$: innerWidth = actualWidth - margin.left - margin.right;
-	$: innerHeight = actualHeight - margin.top - margin.bottom;
+	let margin = $derived({
+		top: props.margins?.top ?? 20,
+		right: props.margins?.right ?? 30,
+		bottom:
+			(props.margins?.bottom ?? yAxisConfig.filter === (() => false))
+				? 20
+				: xAxisConfig.padding + xAxisConfig.fontSize * 1.5,
+		left:
+			(props.margins?.left ?? yAxisConfig.filter === (() => false))
+				? 30
+				: yAxisConfig.padding + yAxisConfig.fontSize * 3.5
+	});
 
-	// Calculate total width needed for all bars with spacing
-	$: totalBarWidth = innerWidth * 0.75;
-	$: barSpacing = totalBarWidth * 0.05;
-	$: barWidth = (totalBarWidth - barSpacing * (series.length - 1)) / series.length;
-	$: groupStartX = margin.left + (innerWidth - totalBarWidth) / 2; // Center the group
+	let actualWidth = $derived(Math.max(containerWidth || 0, margin.left + margin.right + 100));
+	let actualHeight = $derived(Math.max(containerHeight || 0, margin.top + margin.bottom + 50));
+	let innerWidth = $derived(actualWidth - margin.left - margin.right);
 
-	// Update xScale to include spacing
-	$: xScale = (seriesIndex: number) => {
-		return groupStartX + seriesIndex * (barWidth + barSpacing);
-	};
+	let validColors = $derived(
+		colors.length >= series.length
+			? colors
+			: [...colors, ...Array(series.length - colors.length).fill('#9e9e9e')]
+	);
 
-	$: yScale = (y: number) => {
-		return (
-			margin.top +
-			innerHeight -
-			((y - yAxisConfig.min) * innerHeight) / (yAxisConfig.max - yAxisConfig.min)
+	// Category and bar layout calculations
+	let categories = $derived(data.map((d) => d[xAxisLabel]));
+	let categoryWidth = $derived(innerWidth / Math.max(categories.length, 1));
+	let totalBarWidth = $derived(categoryWidth * 0.8); // 80% of category width
+	let barSpacing = $derived(totalBarWidth * 0.05);
+	let barWidth = $derived(
+		(totalBarWidth - barSpacing * (series.length - 1)) / Math.max(series.length, 1)
+	);
+
+	// Scales
+	let yScale = $derived(
+		d3
+			.scaleLinear()
+			.domain([yAxisConfig.min, yAxisConfig.max])
+			.range([actualHeight - margin.bottom, margin.top])
+	);
+
+	let categoryStartX = $derived(
+		(index: number) => margin.left + categoryWidth * index + (categoryWidth - totalBarWidth) / 2
+	);
+
+	let xScale = $derived(
+		(categoryIndex: number, seriesIndex: number) =>
+			categoryStartX(categoryIndex) + seriesIndex * (barWidth + barSpacing)
+	);
+
+	$effect(() => {
+		if (svgRef && data?.length > 0 && actualWidth > 0 && actualHeight > 0) {
+			render(d3.select(svgRef));
+		}
+	});
+
+	function renderAxisAndGrid(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
+		// Calculate Y-axis ticks
+		const yTicks = d3.range(
+			yAxisConfig.min,
+			yAxisConfig.max + yAxisConfig.interval,
+			yAxisConfig.interval
 		);
-	};
 
-	$: yValues = Array.from(
-		{ length: Math.floor((yAxisConfig.max - yAxisConfig.min) / yAxisConfig.interval) + 1 },
-		(_, i) => yAxisConfig.min + i * yAxisConfig.interval
-	);
-
-	// Add this calculation for yLabels
-	$: yLabels = yValues
-		.map((value, i) => ({
-			value,
-			y: yScale(value),
-			show: yAxisConfig.filter(value, i)
-		}))
-		.filter((label) => label.show);
-
-	// Center x-axis label
-	$: xLabelX = margin.left + innerWidth / 2;
-
-	let popupDimensions: Dimensions = { width: 0, height: 0 };
-
-	$: popupPosition = calculatePopupPosition(
-		pointer,
-		margin,
-		actualWidth,
-		actualHeight,
-		popupDimensions
-	);
-
-	function calculatePopupPosition(
-		pointer: PointerState,
-		margin: any,
-		width: number,
-		height: number,
-		popup: Dimensions
-	): PopupPosition {
-		if (!pointer.show || !pointer.data) return { left: 0, top: 0 };
-
-		const padding = 16;
-
-		let left = pointer.x - popup.width / 2;
-		let top = Math.min(...pointer.y) - popup.height - padding;
-
-		// Ensure popup doesn't overflow right edge
-		if (left + popup.width > width - margin.right) {
-			left = width - margin.right - popup.width - padding;
+		// Add grid lines
+		if (yAxisConfig.gridLines) {
+			svg
+				.selectAll('.grid-line')
+				.data(yTicks)
+				.join('line')
+				.attr('class', 'grid-line')
+				.attr('x1', margin.left)
+				.attr('x2', actualWidth - margin.right)
+				.attr('y1', yScale)
+				.attr('y2', yScale)
+				.attr('stroke', yAxisConfig.gridLineColor)
+				.attr('stroke-width', 1);
 		}
 
-		// Ensure popup doesn't overflow left edge
-		if (left < margin.left) {
-			left = margin.left + padding;
+		// Add Y axis labels
+		const filteredYTicks = yTicks.filter((value, index) => yAxisConfig.filter(value, index));
+		svg
+			.selectAll('.y-axis-label')
+			.data(filteredYTicks)
+			.join('text')
+			.attr('class', 'y-axis-label')
+			.attr('x', margin.left - yAxisConfig.padding)
+			.attr('y', yScale)
+			.attr('text-anchor', 'end')
+			.attr('dominant-baseline', 'middle')
+			.attr('font-size', yAxisConfig.fontSize)
+			.attr('fill', yAxisConfig.color)
+			.text(yAxisConfig.format);
+
+		// Add axes
+		if (yAxisConfig.showAxis) {
+			svg
+				.append('line')
+				.attr('class', 'y-axis')
+				.attr('x1', margin.left)
+				.attr('x2', margin.left)
+				.attr('y1', margin.top)
+				.attr('y2', actualHeight - margin.bottom)
+				.attr('stroke', yAxisConfig.axisColor)
+				.attr('stroke-width', 1);
 		}
 
-		// If popup would go above chart, position it below the bar
-		if (top < margin.top) {
-			top = Math.max(...pointer.y) + padding;
+		if (xAxisConfig.showAxis) {
+			svg
+				.append('line')
+				.attr('class', 'x-axis')
+				.attr('x1', margin.left)
+				.attr('x2', actualWidth - margin.right)
+				.attr('y1', actualHeight - margin.bottom)
+				.attr('y2', actualHeight - margin.bottom)
+				.attr('stroke', xAxisConfig.axisColor)
+				.attr('stroke-width', 1);
 		}
 
-		return { left, top };
+		// Add category labels on X axis
+		svg
+			.selectAll('.x-axis-label')
+			.data(categories)
+			.join('text')
+			.attr('class', 'x-axis-label')
+			.attr('x', (_, i) => categoryStartX(i) + totalBarWidth / 2)
+			.attr('y', actualHeight - margin.bottom + xAxisConfig.padding)
+			.attr('text-anchor', 'middle')
+			.attr('font-size', xAxisConfig.fontSize)
+			.attr('fill', xAxisConfig.color)
+			.text((d) => xAxisConfig.format(d));
 	}
 
-	function handleMeasure(dimensions: Dimensions) {
-		popupDimensions = dimensions;
+	function render(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
+		if (!data?.length || !series?.length) return;
+
+		// Clear previous content
+		svg.selectAll('*').remove();
+
+		// Render axes and grid
+		renderAxisAndGrid(svg);
+
+		// Draw bars for each category and series
+		data.forEach((categoryData, categoryIndex) => {
+			series.forEach((seriesName, seriesIndex) => {
+				const barX = xScale(categoryIndex, seriesIndex);
+				const value = categoryData[seriesName];
+				const barY = yScale(value);
+				const barHeight = actualHeight - margin.bottom - barY;
+				const isHovered =
+					pointer.show &&
+					pointer.categoryIndex === categoryIndex &&
+					pointer.seriesIndex === seriesIndex;
+
+				const group = svg.append('g').attr('class', 'bar-group');
+
+				// Main bar
+				group
+					.append('rect')
+					.attr('x', barX)
+					.attr('y', barY)
+					.attr('width', barWidth)
+					.attr('height', barHeight)
+					.attr('fill', validColors[seriesIndex]);
+
+				// Hover effects
+				if (isHovered) {
+					// Right border
+					[-0.5, -1.5, -2.5].forEach((offset, i) => {
+						const opacity = [0.3, 0.15, 0.05][i];
+						group
+							.append('line')
+							.attr('x1', barX + barWidth - offset)
+							.attr('y1', barY + offset)
+							.attr('x2', barX + barWidth - offset)
+							.attr('y2', actualHeight - margin.bottom)
+							.attr('stroke', '#000000')
+							.attr('stroke-width', 1)
+							.attr('stroke-opacity', opacity);
+					});
+
+					// Left border
+					[-0.5, -1.5, -2.5].forEach((offset, i) => {
+						const opacity = [0.3, 0.15, 0.05][i];
+						group
+							.append('line')
+							.attr('x1', barX + offset)
+							.attr('y1', barY + offset)
+							.attr('x2', barX + offset)
+							.attr('y2', actualHeight - margin.bottom)
+							.attr('stroke', '#000000')
+							.attr('stroke-width', 1)
+							.attr('stroke-opacity', opacity);
+					});
+
+					// Top border
+					[-0.5, -1.5, -2.5].forEach((offset, i) => {
+						const opacity = [0.3, 0.15, 0.05][i];
+						group
+							.append('line')
+							.attr('x1', barX + offset)
+							.attr('y1', barY + offset)
+							.attr('x2', barX + barWidth - offset)
+							.attr('y2', barY + offset)
+							.attr('stroke', '#000000')
+							.attr('stroke-width', 1)
+							.attr('stroke-opacity', opacity);
+					});
+				}
+			});
+		});
 	}
 
 	function handleMouseMove(event: MouseEvent) {
-		if (!svg) return;
+		if (!svgRef || !data?.length) return;
 
-		const rect = svg.getBoundingClientRect();
+		const rect = svgRef.getBoundingClientRect();
 		const mouseX = event.clientX - rect.left;
 		const mouseY = event.clientY - rect.top;
 
-		// Find which bar was clicked
 		let found = false;
 
-		for (let j = 0; j < series.length; j++) {
-			const barX = xScale(j);
-			const barY = yScale(data[0][series[j]]);
-			const barHeight = actualHeight - margin.bottom - barY;
+		// Check each category and series combination
+		for (let i = 0; i < data.length; i++) {
+			for (let j = 0; j < series.length; j++) {
+				const barX = xScale(i, j);
+				const value = data[i][series[j]];
+				const barY = yScale(value);
+				const barHeight = actualHeight - margin.bottom - barY;
 
-			if (
-				mouseX >= barX &&
-				mouseX <= barX + barWidth &&
-				mouseY >= barY &&
-				mouseY <= barY + barHeight
-			) {
-				pointer = {
-					x: barX + barWidth / 2,
-					y: [barY],
-					show: true,
-					data: data[0],
-					index: j,
-					series: series[j] // Store which series (bar) is being hovered
-				};
-				found = true;
-				break;
+				if (
+					mouseX >= barX &&
+					mouseX <= barX + barWidth &&
+					mouseY >= barY &&
+					mouseY <= barY + barHeight
+				) {
+					pointer = {
+						x: barX + barWidth / 2,
+						y: [barY],
+						show: true,
+						data: data[i],
+						index: j,
+						series: series[j],
+						categoryIndex: i,
+						seriesIndex: j
+					};
+					found = true;
+					break;
+				}
 			}
+			if (found) break;
 		}
 
 		if (!found) {
 			pointer.show = false;
 		}
+
+		if (svgRef) {
+			render(d3.select(svgRef));
+		}
 	}
 
 	function handleMouseLeave() {
 		pointer.show = false;
+		if (svgRef) {
+			render(d3.select(svgRef));
+		}
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
-			pointer.show = false;
+			handleMouseLeave();
 		}
 	}
 
@@ -206,194 +378,80 @@
 		containerHeight = rect.height;
 	}
 
+	let popupPosition = $derived(
+		calculatePopupPosition(pointer, margin, actualWidth, actualHeight, popupDimensions)
+	);
+
+	function calculatePopupPosition(
+		pointer: PointerState,
+		margin: any,
+		width: number,
+		height: number,
+		popup: Dimensions
+	): PopupPosition {
+		if (!pointer.show || !pointer.data || width <= 0 || height <= 0) {
+			return { left: 0, top: 0 };
+		}
+
+		const padding = 16;
+		let left = pointer.x - popup.width / 2;
+		let top = Math.min(...pointer.y) - popup.height - padding;
+
+		// Ensure popup stays within bounds
+		left = Math.max(
+			margin.left + padding,
+			Math.min(width - margin.right - popup.width - padding, left)
+		);
+
+		// If popup would go above chart, position it below the point
+		if (top < margin.top) {
+			top = Math.max(...pointer.y) + padding;
+		}
+
+		top = Math.max(
+			margin.top + padding,
+			Math.min(height - margin.bottom - popup.height - padding, top)
+		);
+
+		return { left, top };
+	}
+
+	function handleMeasure(dimensions: Dimensions) {
+		popupDimensions = dimensions;
+	}
+
 	onMount(() => {
 		handleResize();
-		const resizeObserver = new ResizeObserver(handleResize);
+		resizeObserver = new ResizeObserver(() => {
+			handleResize();
+			if (svgRef) {
+				render(d3.select(svgRef));
+			}
+		});
 		resizeObserver.observe(chart);
-		return () => resizeObserver.disconnect();
+	});
+
+	onDestroy(() => {
+		if (resizeObserver) {
+			resizeObserver.disconnect();
+		}
 	});
 </script>
 
 <div
 	class="relative h-full w-full outline-none"
 	bind:this={chart}
-	on:mousemove={handleMouseMove}
-	on:mouseleave={handleMouseLeave}
-	on:keydown={handleKeyDown}
+	onmousemove={handleMouseMove}
+	onmouseleave={handleMouseLeave}
+	onkeydown={handleKeyDown}
 	role="button"
 	tabindex="0"
 	aria-label="Interactive bar chart visualization"
 >
 	{#if actualWidth > 0 && actualHeight > 0}
-		<svg width={actualWidth} height={actualHeight} bind:this={svg} role="presentation">
-			<!-- Grid lines -->
-			{#if yAxisConfig.gridLines}
-				{#each yValues as value}
-					<line
-						x1={margin.left}
-						y1={yScale(value)}
-						x2={actualWidth - margin.right}
-						y2={yScale(value)}
-						stroke={yAxisConfig.gridLineColor}
-						stroke-width="1"
-					/>
-				{/each}
-			{/if}
-
-			<!-- Axis lines -->
-			{#if yAxisConfig.showAxis}
-				<line
-					x1={margin.left}
-					y1={margin.top}
-					x2={margin.left}
-					y2={actualHeight - margin.bottom}
-					stroke={yAxisConfig.axisColor}
-					stroke-width="1"
-				/>
-			{/if}
-
-			{#if xAxisConfig.showAxis}
-				<line
-					x1={margin.left}
-					y1={actualHeight - margin.bottom}
-					x2={actualWidth - margin.right}
-					y2={actualHeight - margin.bottom}
-					stroke={xAxisConfig.axisColor}
-					stroke-width="1"
-				/>
-			{/if}
-
-			<!-- Y-axis labels -->
-			{#each yLabels as label}
-				<text
-					x={margin.left - yAxisConfig.padding}
-					y={label.y}
-					text-anchor="end"
-					alignment-baseline="middle"
-					font-size={yAxisConfig.fontSize}
-					fill={yAxisConfig.color}
-				>
-					{yAxisConfig.format(label.value)}
-				</text>
-			{/each}
-
-			<!-- X-axis label -->
-			<text
-				x={xLabelX}
-				y={actualHeight - margin.bottom / 3}
-				text-anchor="middle"
-				font-size={xAxisConfig.fontSize}
-				fill={xAxisConfig.color}
-			>
-				{xAxisLabel}
-			</text>
-
-			<!-- Bars -->
-			{#each series as seriesName, seriesIndex}
-				{@const barX = xScale(seriesIndex)}
-				{@const barY = yScale(data[0][seriesName])}
-				{@const barHeight = actualHeight - margin.bottom - barY}
-				{@const isHovered = pointer.show && pointer.index === seriesIndex}
-
-				<g>
-					<!-- Main bar -->
-					<rect x={barX} y={barY} width={barWidth} height={barHeight} fill={colors[seriesIndex]} />
-
-					<!-- Hover effect - modified to stop at x-axis -->
-					{#if isHovered}
-						<!-- Right border -->
-						<line
-							x1={barX + barWidth + 0.5}
-							y1={barY - 0.5}
-							x2={barX + barWidth + 0.5}
-							y2={actualHeight - margin.bottom}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.3"
-						/>
-						<line
-							x1={barX + barWidth + 1.5}
-							y1={barY - 1.5}
-							x2={barX + barWidth + 1.5}
-							y2={actualHeight - margin.bottom}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.15"
-						/>
-						<line
-							x1={barX + barWidth + 2.5}
-							y1={barY - 2.5}
-							x2={barX + barWidth + 2.5}
-							y2={actualHeight - margin.bottom}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.05"
-						/>
-
-						<!-- Left border -->
-						<line
-							x1={barX - 0.5}
-							y1={barY - 0.5}
-							x2={barX - 0.5}
-							y2={actualHeight - margin.bottom}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.3"
-						/>
-						<line
-							x1={barX - 1.5}
-							y1={barY - 1.5}
-							x2={barX - 1.5}
-							y2={actualHeight - margin.bottom}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.15"
-						/>
-						<line
-							x1={barX - 2.5}
-							y1={barY - 2.5}
-							x2={barX - 2.5}
-							y2={actualHeight - margin.bottom}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.05"
-						/>
-
-						<!-- Top border -->
-						<line
-							x1={barX - 0.5}
-							y1={barY - 0.5}
-							x2={barX + barWidth + 0.5}
-							y2={barY - 0.5}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.3"
-						/>
-						<line
-							x1={barX - 1.5}
-							y1={barY - 1.5}
-							x2={barX + barWidth + 1.5}
-							y2={barY - 1.5}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.15"
-						/>
-						<line
-							x1={barX - 2.5}
-							y1={barY - 2.5}
-							x2={barX + barWidth + 2.5}
-							y2={barY - 2.5}
-							stroke="#000000"
-							stroke-width="1"
-							stroke-opacity="0.05"
-						/>
-					{/if}
-				</g>
-			{/each}
-		</svg>
+		<svg bind:this={svgRef} width={actualWidth} height={actualHeight} role="presentation" />
 	{/if}
 
-	<!-- Popup -->
 	{#if pointer.show && pointer.data && pointer.series}
 		<div
 			use:measure={handleMeasure}

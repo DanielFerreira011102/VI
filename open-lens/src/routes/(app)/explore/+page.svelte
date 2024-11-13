@@ -26,10 +26,11 @@
 		termColors: string[];
 		lineYAxisConfig: YAxisConfig;
 		barYAxisConfig: YAxisConfig;
-	}
+	};
 
 	// Component state
 	let { data } = $props<{ data: PageData }>();
+	console.log(data);
 	let terms = $state<Term[]>([]);
 	let selectedTerms = $derived(terms.filter((term) => term.type === 'selected'));
 	let selectedMetric = $state<MetricType>('works');
@@ -37,7 +38,7 @@
 	// Chart configurations
 	const xAxisConfig: AxisConfig = {
 		interval: 1,
-		format: (value) => value.toString(),
+		format: (value) => value?.toString() || '',
 		rotation: 0,
 		fontSize: 14,
 		padding: 25,
@@ -62,7 +63,7 @@
 				return (value / 1000).toFixed(1) + 'K';
 			}
 			return value.toString();
-		},		
+		},
 		gridLines: true,
 		showAxis: false,
 		gridLineColor: '#e0e0e0',
@@ -70,7 +71,7 @@
 		axisColor: '#9e9e9e'
 	};
 
-	// Utility functions
+	// Utility functions remain the same
 	const getMetricValue = (yearData: YearData | undefined, metric: MetricType): number => {
 		if (!yearData) return 0;
 
@@ -105,7 +106,6 @@
 		barYAxisConfig: { ...baseYAxisConfig, filter: () => false }
 	});
 
-	// Update chart data when selected terms or metric changes
 	$effect(() => {
 		if (!selectedTerms.length || !data) {
 			chartState = {
@@ -148,9 +148,9 @@
 		const max = Math.ceil(maxValue / 100) * 100;
 		const interval = Math.ceil(max / 4);
 
-		// Calculate averages for bar chart
+		// Calculate averages for bar chart (keep original structure)
 		const averages: DataPoint = {
-			identifier: 'Average',
+			category: 'Average',
 			...Object.fromEntries(
 				selectedTerms.map((term) => [
 					term.value,
@@ -182,36 +182,36 @@
 		};
 	});
 
-	// Popup templates
+	// Keep original popup templates
 	const createLinePopup = (item: DataPoint) => `
-	<div class="bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72">
-		<div class="pb-2 font-semibold">${item.year}</div>
-		${selectedTerms
+  <div class="bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72">
+    <div class="pb-2 font-semibold">${item.year}</div>
+    ${selectedTerms
 			.map(
 				(term) => `
-		<div class="flex items-center justify-between h-4 mt-2">
-			<span class="truncate">${term.value}</span>
-			<span class="ml-4" style="color: ${term.color ?? '#000'}">${(item[term.value] ?? 0).toLocaleString()}</span>
-		</div>
-		`
+    <div class="flex items-center justify-between h-4 mt-2">
+      <span class="truncate">${term.value}</span>
+      <span class="ml-4" style="color: ${term.color ?? '#000'}">${(item[term.value] ?? 0).toLocaleString()}</span>
+    </div>
+    `
 			)
 			.join('')}
-	</div>
-	`;
+  </div>
+`;
 
 	const createBarPopup = (item: DataPoint, series: string) => {
 		const term = selectedTerms.find((term) => term.value === series);
 		if (!term) return '';
 
 		return `
-		<div class="bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72">
-		<div class="pb-2 font-semibold">Average</div>
-		<div class="flex items-center justify-between h-4 mt-2">
-			<span class="truncate">${series}</span>
-			<span class="ml-4" style="color: ${term.color ?? '#000'}">${(item[series] ?? 0).toLocaleString()}</span>
-		</div>
-		</div>
-	`;
+    <div class="bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72">
+      <div class="pb-2 font-semibold">Average</div>
+      <div class="flex items-center justify-between h-4 mt-2">
+        <span class="truncate">${series}</span>
+        <span class="ml-4" style="color: ${term.color ?? '#000'}">${(item[series] ?? 0).toLocaleString()}</span>
+      </div>
+    </div>
+  `;
 	};
 
 	// Initialize term store
@@ -260,46 +260,47 @@
 </div>
 
 <div class="bg-blue-400 bg-opacity-10 py-4">
-	<div class="container mx-auto flex items-center justify-between p-4">
-		<div class="w-full rounded-2xl bg-white p-4">
-			<div class="flex items-center justify-between p-4">
-				<div class="flex items-center space-x-4">
-					<h1 class="text-2xl leading-6 text-gray-900">
-						{getMetricLabel(selectedMetric)} Over Time
-					</h1>
-					<button class="h-8 w-8 text-gray-500">
-						<MdHelpOutline />
-					</button>
+	{#if selectedTerms.length > 0}
+		<div class="container mx-auto flex items-center justify-between p-4">
+			<div class="w-full rounded-2xl bg-white p-4">
+				<div class="flex items-center justify-between p-4">
+					<div class="flex items-center space-x-4">
+						<h1 class="text-2xl leading-6 text-gray-900">
+							{getMetricLabel(selectedMetric)} Over Time
+						</h1>
+						<button class="h-8 w-8 text-gray-500">
+							<MdHelpOutline />
+						</button>
+					</div>
+					<Select
+						options={[
+							{ value: 'works', label: 'Works' },
+							{ value: 'citations', label: 'Citations' },
+							{ value: 'avgCitations', label: 'Average Citations' }
+						]}
+						autoFocusDropdown={true}
+						onChange={(value) => (selectedMetric = value as MetricType)}
+						buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
+						dropdownClassName="min-w-48"
+						dropdownPadding="1rem"
+						dropdownOptionHeight="3.5rem"
+						dropdownTop="-1rem"
+					/>
 				</div>
-				<Select
-					options={[
-						{ value: 'works', label: 'Works' },
-						{ value: 'citations', label: 'Citations' },
-						{ value: 'avgCitations', label: 'Average Citations' }
-					]}
-					autoFocusDropdown={true}
-					onChange={(value) => (selectedMetric = value as MetricType)}
-					buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
-					dropdownClassName="min-w-48"
-					dropdownPadding="1rem"
-					dropdownOptionHeight="3.5rem"
-					dropdownTop="-1rem"
-				/>
-			</div>
-			<div class="grid w-full grid-cols-12 px-4 pb-12 pt-16">
-				{#if selectedTerms.length > 0}
-					<div class="col-span-2 h-72">
+				<div class="grid w-full grid-cols-12 px-4 pb-8 pt-12">
+					<div class="col-span-2 h-80">
 						<BarChart
 							data={chartState.averageData}
 							series={chartState.termValues}
 							colors={chartState.termColors}
-							xAxisLabel="Average"
+							xAxisLabel="category"
 							{xAxisConfig}
 							yAxisConfig={chartState.barYAxisConfig}
 							popupTemplate={createBarPopup}
+							margins={{ left: 30 }}
 						/>
 					</div>
-					<div class="col-span-10 h-72">
+					<div class="col-span-10 h-80">
 						<LineChart
 							data={chartState.lineData}
 							series={chartState.termValues}
@@ -310,8 +311,17 @@
 							yAxisConfig={chartState.lineYAxisConfig}
 						/>
 					</div>
-				{/if}
+				</div>
 			</div>
 		</div>
-	</div>
+	{:else}
+		<div class="container mx-auto p-4">
+			<div class="w-full rounded-2xl bg-white p-12 text-center">
+				<h2 class="mb-2 text-xl font-medium text-gray-900">No Terms Selected</h2>
+				<p class="text-gray-600">
+					Use the search box above to select terms and visualize their data.
+				</p>
+			</div>
+		</div>
+	{/if}
 </div>

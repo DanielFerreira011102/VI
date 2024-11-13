@@ -23,6 +23,7 @@
 	let suggestions = $state<Option[]>([]);
 	let isDropdownOpen = $state(false);
 	let isFetching = $state(false);
+	let dropdownRef: any; // Reference to the Dropdown component
 
 	// Auto-focus input on mount
 	$effect(() => {
@@ -30,7 +31,11 @@
 	});
 
 	const fetchSuggestions = async (query: string) => {
-		if (!props.autocomplete?.enabled || !query || query.length < (props.autocomplete.minChars || 0)) {
+		if (
+			!props.autocomplete?.enabled ||
+			!query ||
+			query.length < (props.autocomplete.minChars || 0)
+		) {
 			suggestions = [];
 			return;
 		}
@@ -88,13 +93,15 @@
 		} else if (event.key === 'ArrowDown' && suggestions.length > 0) {
 			event.preventDefault();
 			isDropdownOpen = true;
+			// Focus the dropdown and its first option
+			dropdownRef?.focusFirstOption();
 		}
 	};
 
 	const handleInput = (event: Event) => {
 		const value = (event.target as HTMLInputElement).value;
 		searchValue = value;
-		
+
 		if (debouncedFetch && value.trim()) {
 			debouncedFetch(value);
 			isDropdownOpen = true;
@@ -109,7 +116,8 @@
 
 		// Don't trigger blur when clicking dropdown or clear button
 		const relatedTarget = event.relatedTarget as HTMLElement;
-		if (relatedTarget?.closest('[role="listbox"]') || relatedTarget?.dataset.action === 'clear') return;
+		if (relatedTarget?.closest('[role="listbox"]') || relatedTarget?.dataset.action === 'clear')
+			return;
 
 		if (props.wasCompare) {
 			props.onRevert();
@@ -171,6 +179,7 @@
 
 	{#if suggestions.length > 0}
 		<Dropdown
+			bind:this={dropdownRef}
 			isOpen={isDropdownOpen}
 			anchor={inputElement}
 			options={suggestions}
@@ -182,6 +191,7 @@
 			optionHeight="3.5rem"
 			top="100%"
 			className="max-h-64"
+			autoFocus={false}
 		/>
 	{/if}
 </div>

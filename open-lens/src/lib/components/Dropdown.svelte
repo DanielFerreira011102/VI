@@ -24,7 +24,7 @@
 		onSelect,
 		onClose,
 		enableKeyboardHighlight = true,
-		autoFocus = false,
+		autoFocus = false
 	} = $props<{
 		isOpen: boolean;
 		anchor: HTMLElement;
@@ -51,7 +51,8 @@
 	let highlightedIndex = $state(
 		options.findIndex((option: Option) => option.value === selectedOption.value)
 	);
-	let dropdownEl: HTMLDivElement;
+	let dropdownEl = $state<HTMLDivElement | null>(null);
+	let optionElements = $state<HTMLButtonElement[]>([]);
 
 	function getCurrentIndex() {
 		return options.findIndex((option: Option) => option.value === selectedOption.value);
@@ -69,11 +70,13 @@
 				event.preventDefault();
 				highlightedIndex = highlightedIndex < options.length - 1 ? highlightedIndex + 1 : 0;
 				scrollOptionIntoView();
+				focusOption(highlightedIndex);
 				break;
 			case 'ArrowUp':
 				event.preventDefault();
 				highlightedIndex = highlightedIndex > 0 ? highlightedIndex - 1 : options.length - 1;
 				scrollOptionIntoView();
+				focusOption(highlightedIndex);
 				break;
 			case 'Enter':
 			case ' ':
@@ -87,13 +90,27 @@
 
 	function scrollOptionIntoView() {
 		if (!dropdownEl) return;
-		const optionElements = dropdownEl.getElementsByTagName('button');
-		if (optionElements[highlightedIndex]) {
-			optionElements[highlightedIndex].scrollIntoView({
+		const optionElement = optionElements[highlightedIndex];
+		if (optionElement) {
+			optionElement.scrollIntoView({
 				block: 'nearest',
 				behavior: 'smooth'
 			});
 		}
+	}
+
+	function focusOption(index: number) {
+		if (optionElements[index]) {
+			optionElements[index].focus();
+		}
+	}
+
+	// Export this method to be called from parent
+	export function focusFirstOption() {
+		highlightedIndex = 0;
+		setTimeout(() => {
+			focusOption(0);
+		}, 0);
 	}
 
 	$effect(() => {
@@ -102,6 +119,8 @@
 			if (autoFocus) {
 				dropdownEl?.focus();
 			}
+			// Get all option elements after the dropdown is open
+			optionElements = Array.from(dropdownEl?.getElementsByTagName('button') || []);
 		}
 	});
 </script>
@@ -142,7 +161,7 @@
 				role="option"
 				aria-selected={selectedOption === option}
 				onclick={() => onSelect(option)}
-				tabindex="-1"
+				tabindex="0"
 			>
 				<span class="w-full truncate whitespace-nowrap text-left">{option.label}</span>
 			</button>

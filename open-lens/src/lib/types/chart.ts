@@ -1,3 +1,10 @@
+type Margin = {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+};
+
 type AxisConfig = {
 	interval: number;
 	format: (value: any) => string;
@@ -26,13 +33,6 @@ type PointerState = {
 	data: DataPoint | null;
 	index: number;
 	series?: string;
-};
-
-type Margin = {
-	top: number;
-	right: number;
-	bottom: number;
-	left: number;
 };
 
 type Dimensions = {
