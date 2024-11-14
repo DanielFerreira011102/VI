@@ -1,10 +1,12 @@
 <script lang="ts">
+	import type { AutocompleteConfig } from '$lib/types/autocomplete';
 	import MdArrowDropDown from 'svelte-icons/md/MdArrowDropDown.svelte';
-	import Dropdown from './Dropdown.svelte';
+	import Dropdown from '$lib/components/Dropdown.svelte';	
 	import type { Option } from '$lib/types/option';
 
 	let {
 		options,
+		autocomplete,
 		onChange,
 		// Button styling
 		buttonMinWidth,
@@ -13,7 +15,9 @@
 		buttonBorderRadius,
 
 		// Dropdown styling
+		dropdownWidth,
 		dropdownMinWidth,
+		dropdownMaxWidth,
 		dropdownPadding,
 		dropdownOptionHeight,
 		dropdownBorderRadius,
@@ -34,12 +38,15 @@
 		autoFocusDropdown = false
 	} = $props<{
 		options: Option[];
+		autocomplete?: AutocompleteConfig;
 		onChange: (option: string) => void;
 		buttonMinWidth?: string;
 		buttonHeight?: string;
 		buttonPadding?: string;
 		buttonBorderRadius?: string;
+		dropdownWidth?: string;
 		dropdownMinWidth?: string;
+		dropdownMaxWidth?: string;
 		dropdownPadding?: string;
 		dropdownOptionHeight?: string;
 		dropdownBorderRadius?: string;
@@ -56,7 +63,7 @@
 
 	let selectedOption = $state<{ value: string; label: string }>(options[0]);
 	let isOpen = $state(false);
-	let buttonEl: HTMLButtonElement;
+	let buttonEl = $state<HTMLButtonElement | null>(null);
 
 	function selectOption(option: { value: string; label: string }) {
 		selectedOption = option;
@@ -110,7 +117,9 @@
 		{enableKeyboardHighlight}
 		autoFocus={autoFocusDropdown}
 		anchor={buttonEl}
+		width={dropdownWidth}
 		minWidth={dropdownMinWidth}
+		maxWidth={dropdownMaxWidth}
 		padding={dropdownPadding}
 		optionHeight={dropdownOptionHeight}
 		borderRadius={dropdownBorderRadius}

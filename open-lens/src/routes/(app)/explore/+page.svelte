@@ -247,13 +247,27 @@
 					{ value: 'citations', label: 'Citations' },
 					{ value: 'avgCitations', label: 'Average Citations' }
 				]}
-				autoFocusDropdown={true}
-				onChange={(value) => (selectedMetric = value as MetricType)}
-				buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
-				dropdownClassName="min-w-48"
+				autocomplete={{
+					enabled: true,
+					fetchSuggestions: async (query) => {
+						const response = await fetch(
+							`https://api.openalex.org/autocomplete/topics?q=${encodeURIComponent(query)}`
+						);
+						const data = await response.json();
+						return data.results || [];
+					},
+					debounceMs: 300,
+					minChars: 2,
+					processResult: (result) => result.display_name
+				}}
+				onChange={(value) => {}}
+				autoFocusDropdown={false}
+				buttonClassName="w-48 h-12 p-4 rounded-lg leading-6"
+				dropdownClassName="max-h-64"
+				dropdownWidth="24rem"
 				dropdownPadding="1rem"
 				dropdownOptionHeight="3.5rem"
-				dropdownTop="-1rem"
+				dropdownTop="3.2rem"
 			/>
 		</div>
 	</div>
@@ -313,6 +327,10 @@
 					</div>
 				</div>
 			</div>
+		</div>
+		<div class="container mx-auto grid gap-8 grid-cols-12 items-center justify-between p-4">
+			<div class="w-full col-span-8 rounded-2xl bg-white p-4"></div>
+			<div class="w-full col-span-4 rounded-2xl bg-white p-4"></div>
 		</div>
 	{:else}
 		<div class="container mx-auto p-4">

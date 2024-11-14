@@ -48,6 +48,7 @@
 		autoFocus?: boolean;
 	}>();
 
+	
 	let highlightedIndex = $state(
 		options.findIndex((option: Option) => option.value === selectedOption.value)
 	);

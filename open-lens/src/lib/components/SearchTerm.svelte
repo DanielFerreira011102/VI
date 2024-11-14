@@ -23,7 +23,7 @@
 	let suggestions = $state<Option[]>([]);
 	let isDropdownOpen = $state(false);
 	let isFetching = $state(false);
-	let dropdownRef: any; // Reference to the Dropdown component
+	let dropdownRef = $state<Dropdown | null>(null);
 
 	// Auto-focus input on mount
 	$effect(() => {
