@@ -94,7 +94,7 @@
 			event.preventDefault();
 			isDropdownOpen = true;
 			// Focus the dropdown and its first option
-			dropdownRef?.focusFirstOption();
+			dropdownRef?.focusOption(0);
 		}
 	};
 

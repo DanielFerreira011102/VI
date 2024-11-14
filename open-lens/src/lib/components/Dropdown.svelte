@@ -69,15 +69,11 @@
 				break;
 			case 'ArrowDown':
 				event.preventDefault();
-				highlightedIndex = highlightedIndex < options.length - 1 ? highlightedIndex + 1 : 0;
-				scrollOptionIntoView();
-				focusOption(highlightedIndex);
+				focusOption(highlightedIndex < options.length - 1 ? highlightedIndex + 1 : 0);
 				break;
 			case 'ArrowUp':
 				event.preventDefault();
-				highlightedIndex = highlightedIndex > 0 ? highlightedIndex - 1 : options.length - 1;
-				scrollOptionIntoView();
-				focusOption(highlightedIndex);
+				focusOption(highlightedIndex > 0 ? highlightedIndex - 1 : options.length - 1);
 				break;
 			case 'Enter':
 			case ' ':
@@ -100,18 +96,12 @@
 		}
 	}
 
-	function focusOption(index: number) {
+	export function focusOption(index: number) {
 		if (optionElements[index]) {
+			highlightedIndex = index;
+			scrollOptionIntoView();
 			optionElements[index].focus();
 		}
-	}
-
-	// Export this method to be called from parent
-	export function focusFirstOption() {
-		highlightedIndex = 0;
-		setTimeout(() => {
-			focusOption(0);
-		}, 0);
 	}
 
 	$effect(() => {
