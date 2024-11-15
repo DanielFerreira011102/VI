@@ -30,7 +30,9 @@
 
 	// Component state
 	let { data } = $props<{ data: PageData }>();
+
 	console.log(data);
+	
 	let terms = $state<Term[]>([]);
 	let selectedTerms = $derived(terms.filter((term) => term.type === 'selected'));
 	let selectedMetric = $state<MetricType>('works');
@@ -216,6 +218,7 @@
 
 	// Initialize term store
 	onMount(() => termStore.initialize($page.url.search));
+	
 	termStore.subscribe((value) => {
 		terms = value;
 	});
@@ -235,7 +238,12 @@
 				},
 				debounceMs: 300,
 				minChars: 2,
-				processResult: (result) => result.display_name
+				processResult: (result) => {
+					return {
+						value: result.id.replace('https://openalex.org/', ''),
+						label: result.display_name
+					};
+				}
 			}}
 		/>
 	</div>
@@ -243,9 +251,7 @@
 		<div class="w-full rounded-2xl bg-white p-4">
 			<Select
 				options={[
-					{ value: 'works', label: 'Works' },
-					{ value: 'citations', label: 'Citations' },
-					{ value: 'avgCitations', label: 'Average Citations' }
+					{ value: 'allTopics', label: 'All Topics' },
 				]}
 				autocomplete={{
 					enabled: true,
@@ -257,17 +263,22 @@
 						return data.results || [];
 					},
 					debounceMs: 300,
-					minChars: 2,
-					processResult: (result) => result.display_name
+					minChars: 0,
+					processResult: (result) => {
+						return {
+							value: result.id,
+							label: result.display_name
+						};
+					}
 				}}
 				onChange={(value) => {}}
-				autoFocusDropdown={false}
-				buttonClassName="w-48 h-12 p-4 rounded-lg leading-6"
-				dropdownClassName="max-h-64"
-				dropdownWidth="24rem"
+				autoFocusDropdown={true}
+				buttonClassName="w-96 h-12 p-4 rounded-lg leading-6"
+				dropdownClassName="max-h-72"
+				dropdownWidth="32rem"
 				dropdownPadding="1rem"
 				dropdownOptionHeight="3.5rem"
-				dropdownTop="3.2rem"
+				dropdownTop="-1rem"
 			/>
 		</div>
 	</div>
@@ -331,6 +342,9 @@
 		<div class="container mx-auto grid gap-8 grid-cols-12 items-center justify-between p-4">
 			<div class="w-full col-span-8 rounded-2xl bg-white p-4"></div>
 			<div class="w-full col-span-4 rounded-2xl bg-white p-4"></div>
+		</div>
+		<div class="container mx-auto flex items-center justify-between p-4">
+			<div class="w-full rounded-2xl bg-white p-4"></div>
 		</div>
 	{:else}
 		<div class="container mx-auto p-4">

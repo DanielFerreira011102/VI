@@ -1,38 +1,52 @@
+// routes/explore/+page.server.ts
 import type { PageServerLoad } from './$types';
+import { ITEM_GROUPS } from '$lib/types/term';
 
 export const load: PageServerLoad = async ({ url }) => {
-	const queryParam = url.searchParams.get('q');
+    const queryParam = url.searchParams.get('q');
+    if (!queryParam) {
+        return {};
+    }
 
-	if (!queryParam) {
-		return {}; // Return empty object without nesting
-	}
+    const encodedTerms = queryParam.split(',').filter(Boolean);
+    const fetchPromises = encodedTerms.map(async (term) => {
+        const decoded = decodeURIComponent(term);
+        let apiUrl: string;
 
-	const searchTerms = queryParam.split(',').filter((term) => term.trim());
+		console.log('decoded', decoded);
 
-	const fetchPromises = searchTerms.map((term) => {
-		const apiUrl = `https://api.openalex.org/institutions?filter=display_name.search:${encodeURIComponent(term.trim())}`;
-		return fetch(apiUrl)
-			.then((res) => {
-				if (!res.ok) {
-					throw new Error(`API request failed for term: ${term}`);
-				}
-				return res.json().then((data) => data.results[0]);
-			})
-			.catch((error) => {
-				console.error(`Error fetching data for ${term}:`, error);
-				return null;
-			});
-	});
+        if (decoded.startsWith('/i/')) {
+            // Institution ID lookup
+            const institutionId = decoded.slice(3); // Remove '/i/' prefix
+            apiUrl = `https://api.openalex.org/institutions/${institutionId}`;
+			console.log('apiUrl', apiUrl);
+        } else {
+            // Search term lookup
+            apiUrl = `https://api.openalex.org/institutions?filter=display_name.search:${encodeURIComponent(decoded)}`;
+        }
 
-	try {
-		const results = await Promise.all(fetchPromises);
+        try {
+            const res = await fetch(apiUrl);
+            if (!res.ok) {
+                throw new Error(`API request failed for term: ${decoded}`);
+            }
+            const data = await res.json();
+            
+            // Return first result for search, or the full response for direct ID lookup
+            return decoded.startsWith('/i/') ? data : data.results[0];
+        } catch (error) {
+            console.error(`Error fetching data for ${decoded}:`, error);
+            return null;
+        }
+    });
 
-		// Return the object directly without nesting under 'data'
-		return Object.fromEntries(searchTerms.map((term, index) => [term.trim(), results[index]]));
-	} catch (error) {
-		console.error('Error processing requests:', error);
-		return {
-			error: 'Failed to fetch data'
-		};
-	}
+    try {
+        const results = await Promise.all(fetchPromises);
+        return Object.fromEntries(encodedTerms.map((term, index) => [term.trim(), results[index]]));
+    } catch (error) {
+        console.error('Error processing requests:', error);
+        return {
+            error: 'Failed to fetch data'
+        };
+    }
 };
