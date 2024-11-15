@@ -1,4 +1,4 @@
-import type { Option } from "./option";
+import type { Option } from './option';
 
 type AutocompleteConfig = {
 	enabled: boolean;

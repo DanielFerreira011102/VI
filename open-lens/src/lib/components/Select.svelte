@@ -6,7 +6,8 @@
 	import Dropdown from '$lib/components/Dropdown.svelte';
 
 	let {
-		options = [], // Make options optional with empty array default
+		options = [],
+		defaultOption,
 		autocomplete,
 		onChange,
 		// Button styling
@@ -35,8 +36,9 @@
 		autoFocusDropdown = false
 	} = $props<{
 		options?: Option[];
+		defaultOption?: Option;
 		autocomplete?: AutocompleteConfig;
-		onChange: (option: string) => void;
+		onChange: (option: Option) => void;
 		buttonMinWidth?: string;
 		buttonHeight?: string;
 		buttonPadding?: string;
@@ -58,7 +60,9 @@
 		autoFocusDropdown?: boolean;
 	}>();
 
-	let selectedOption = $state<Option>(options[0] || { value: '', label: 'Select...' });
+	let selectedOption = $state<Option>(
+		defaultOption ?? options[0] ?? { value: '', label: 'Select...' }
+	);
 	let isOpen = $state(false);
 	let buttonEl = $state<HTMLButtonElement | null>(null);
 	let searchValue = $state('');
@@ -72,9 +76,10 @@
 	function filterPredefinedOptions(query: string): Option[] {
 		if (!query) return options;
 		const lowerQuery = query.toLowerCase();
-		return options.filter((option: Option) =>
-			option.label.toLowerCase().includes(lowerQuery) || 
-			option.value.toLowerCase().includes(lowerQuery)
+		return options.filter(
+			(option: Option) =>
+				option.label.toLowerCase().includes(lowerQuery) ||
+				option.value.toLowerCase().includes(lowerQuery)
 		);
 	}
 
@@ -92,16 +97,14 @@
 		isFetching = true;
 		try {
 			const results = await autocomplete.fetchSuggestions(query);
-			const apiSuggestions = results.map((result: any) => (autocomplete.processResult(result)));
+			const apiSuggestions = results.map((result: any) => autocomplete.processResult(result));
 
 			// Combine and deduplicate API results with filtered predefined options
 			const filteredPredefined = filterPredefinedOptions(query);
 			const combined = [...filteredPredefined, ...apiSuggestions];
-			
+
 			// Remove duplicates based on value
-			suggestions = Array.from(
-				new Map(combined.map(item => [item.value, item])).values()
-			);
+			suggestions = Array.from(new Map(combined.map((item) => [item.value, item])).values());
 		} catch (error) {
 			console.error('Error fetching suggestions:', error);
 			suggestions = filterPredefinedOptions(query);
@@ -112,7 +115,7 @@
 
 	function selectOption(option: Option) {
 		selectedOption = option;
-		onChange(option.value);
+		onChange(option);
 		handleClose();
 	}
 
@@ -141,6 +144,10 @@
 			suggestions = options;
 		}
 	});
+
+	$effect(() => {
+		selectedOption = defaultOption ?? options[0] ?? { value: '', label: 'Select...' };
+	});
 </script>
 
 <div class="relative inline-block">
@@ -148,7 +155,7 @@
 		bind:this={buttonEl}
 		onclick={() => (isOpen = !isOpen)}
 		onkeydown={(e) => {
-			if (!isOpen && ['Enter', ' ', 'ArrowDown'].includes(e.key)) {
+			if (!isOpen && ['Enter', 'ArrowDown'].includes(e.key)) {
 				e.preventDefault();
 				isOpen = true;
 			}
@@ -195,7 +202,7 @@
 		{selectedOption}
 		onSelect={selectOption}
 		onClose={handleClose}
-		searchValue={searchValue}
+		{searchValue}
 		onSearchInput={handleSearchInput}
 		{isFetching}
 	/>

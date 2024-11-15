@@ -370,20 +370,28 @@
 		}
 
 		const padding = 16;
-		let left = pointer.x - popup.width / 2;
-		let top = Math.min(...pointer.y) - popup.height - padding;
+		const gap = 32; // Distance between popup and hovered points
 
-		// Ensure popup stays within bounds
+		// Try positioning to the left first
+		let left = pointer.x - popup.width - gap;
+
+		// If it doesn't fit on the left, position to the right
+		if (left < margin.left + padding) {
+			left = pointer.x + gap;
+		}
+
+		// Ensure popup stays within horizontal bounds
 		left = Math.max(
 			margin.left + padding,
 			Math.min(width - margin.right - popup.width - padding, left)
 		);
 
-		// If popup would go above chart, position it below the point
-		if (top < margin.top) {
-			top = Math.max(...pointer.y) + padding;
-		}
+		// Calculate optimal vertical position by averaging all point positions
+		const averageY = pointer.y.reduce((sum, y) => sum + y, 0) / pointer.y.length;
+		// Center the popup vertically relative to the average point position
+		let top = averageY - popup.height / 2;
 
+		// Ensure popup stays within vertical bounds
 		top = Math.max(
 			margin.top + padding,
 			Math.min(height - margin.bottom - popup.height - padding, top)

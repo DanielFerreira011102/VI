@@ -84,7 +84,7 @@
 		const optionHeight = optionElements[0]?.offsetHeight ?? 56;
 		const containerHeight = container.clientHeight;
 		const optionTop = index * optionHeight;
-		
+
 		if (index === 0) {
 			container.scrollTop = 0;
 		} else if (index === options.length - 1) {
@@ -186,7 +186,7 @@
 					value={searchValue}
 					onfocus={handleInputFocus}
 					oninput={onSearchInput}
-					class="w-full h-16 py-6 pl-4 px-12 outline-none text-gray-900"
+					class="h-16 w-full px-12 py-6 pl-4 text-gray-900 outline-none"
 					placeholder="Search..."
 				/>
 				{#if searchValue}
@@ -202,25 +202,23 @@
 			</div>
 		{/if}
 
-		<div 
+		<div
 			bind:this={optionsContainer}
 			class="flex-1 overflow-y-auto"
 			style="scroll-behavior: smooth;"
 		>
 			{#if isFetching}
-				<div class="flex items-center justify-center p-4 text-gray-500">
-					Loading...
-				</div>
+				<div class="flex items-center justify-center p-4 text-gray-500">Loading...</div>
 			{:else if options.length === 0}
-				<div class="flex items-center justify-center p-4 text-gray-500">
-					No results found
-				</div>
+				<div class="flex items-center justify-center p-4 text-gray-500">No results found</div>
 			{:else}
 				{#each options as option, index}
 					<button
 						use:ripple={{ duration: 0.8 }}
-						class="flex w-full cursor-pointer items-center outline-none text-gray-900 {enableKeyboardHighlight &&
-						index === highlightedIndex ? 'bg-neutral-100' : ''} hover:bg-neutral-100 {optionClassName}"
+						class="flex w-full cursor-pointer items-center text-gray-900 outline-none {enableKeyboardHighlight &&
+						index === highlightedIndex
+							? 'bg-neutral-100'
+							: ''} hover:bg-neutral-100 {optionClassName}"
 						style="
 							height: {optionHeight};
 							padding-left: {padding};

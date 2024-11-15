@@ -331,7 +331,7 @@
 					mouseX <= barX + barWidth &&
 					mouseY >= barY &&
 					mouseY <= barY + barHeight
-					) {
+				) {
 					pointer = {
 						x: barX + barWidth / 2,
 						y: [barY],
@@ -340,11 +340,11 @@
 						index: j,
 						series: series[j],
 						categoryIndex: i,
-						seriesIndex: j  // Make sure this is passed
+						seriesIndex: j // Make sure this is passed
 					};
 					found = true;
 					break;
-					}
+				}
 			}
 			if (found) break;
 		}
@@ -394,24 +394,36 @@
 		}
 
 		const padding = 16;
-		let left = pointer.x - popup.width / 2;
-		let top = Math.min(...pointer.y) - popup.height - padding;
+		const gap = 12; // Distance between popup and hovered points/bars
 
-		// Ensure popup stays within bounds
+		// For bar charts, we want to position relative to the bar's center (pointer.x)
+		// For line charts, we want to position relative to the actual point
+		const anchorX = pointer.x;
+		const anchorY = Math.min(...pointer.y);
+
+		// Try positioning to the left first
+		let left = anchorX - popup.width - gap;
+
+		// If it doesn't fit on the left, position to the right
+		if (left < margin.left + padding) {
+			left = anchorX + gap;
+		}
+
+		// Ensure popup stays within horizontal bounds
 		left = Math.max(
 			margin.left + padding,
 			Math.min(width - margin.right - popup.width - padding, left)
 		);
 
-		// If popup would go above chart, position it below the point
-		if (top < margin.top) {
-			top = Math.max(...pointer.y) + padding;
-		}
+		// For vertical positioning, we want to center relative to the point/bar
+		let top = anchorY - popup.height / 2;
 
-		top = Math.max(
-			margin.top + padding,
-			Math.min(height - margin.bottom - popup.height - padding, top)
-		);
+		// If this would cause vertical overflow, adjust accordingly
+		if (top < margin.top + padding) {
+			top = margin.top + padding;
+		} else if (top + popup.height > height - margin.bottom - padding) {
+			top = height - margin.bottom - popup.height - padding;
+		}
 
 		return { left, top };
 	}
@@ -458,7 +470,7 @@
 			class="pointer-events-none absolute"
 			style="left: {popupPosition.left}px; top: {popupPosition.top}px;"
 			role="tooltip"
-			>
+		>
 			{@html popupTemplate(pointer.data, pointer.series, pointer.seriesIndex)}
 		</div>
 	{/if}

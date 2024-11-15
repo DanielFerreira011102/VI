@@ -5,7 +5,7 @@
 	const props = $props<{
 		term: Term;
 		onEdit: () => void;
-		onDelete: () => void;	
+		onDelete: () => void;
 	}>();
 </script>
 

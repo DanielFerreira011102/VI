@@ -45,7 +45,7 @@
 		isFetching = true;
 		try {
 			const results = await props.autocomplete.fetchSuggestions(query);
-			suggestions = results.map((result: any) => (props.autocomplete.processResult(result)));
+			suggestions = results.map((result: any) => props.autocomplete.processResult(result));
 		} catch (error) {
 			console.error('Error fetching suggestions:', error);
 			suggestions = [];
