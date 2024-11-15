@@ -3,43 +3,41 @@
 	import * as d3 from 'd3';
 	import { measure } from '$lib/actions/measure';
 	import type {
-		AxisConfig,
-		YAxisConfig,
-		DataPoint,
-		PointerState,
+		BarChartProps,
+		BarChartPointerState,
+		BarChartDataPoint,
 		Dimensions,
-		PopupPosition
+		PopupPosition,
+		Margin
 	} from '$lib/types/chart';
 
-	const props = $props<{
-		data?: DataPoint[];
-		series?: string[];
-		colors?: string[];
-		popupTemplate?: (item: DataPoint, series: string, seriesIndex: number) => string;
-		xAxisLabel?: string;
-		xAxisConfig?: AxisConfig;
-		yAxisConfig?: YAxisConfig;
-		margins?: {
-			top?: number;
-			right?: number;
-			bottom?: number;
-			left?: number;
-		};
-	}>();
+	const props = $props<BarChartProps>();
 
-	// Default values for props
+	// Initialize props with default values
 	const data = $derived(props.data ?? []);
 	const series = $derived(props.series ?? []);
 	const colors = $derived(props.colors ?? []);
 	const xAxisLabel = $derived(props.xAxisLabel ?? 'x');
 
+	const seriesConfig = $derived(
+		props.seriesConfig ?? {
+			barWidth: 0.8,
+			barSpacing: 0.2,
+			showHoverEffects: true,
+			hoverStyle: {
+				borderWidth: 2.5,
+				borderOpacity: 0.3
+			}
+		}
+	);
+
 	const popupTemplate = $derived(
 		props.popupTemplate ??
-			((item: DataPoint, series: string) => `
-  <div class="bg-white shadow-lg rounded p-2">
-    ${series ? `${series}: ${item[series]}` : `Value: ${item.value}`}
-  </div>
-`)
+			((item: BarChartDataPoint, series: string, seriesIndex: number) => `
+	  <div class="bg-white shadow-lg rounded p-2">
+		${series}: ${item[series]}
+	  </div>
+	`)
 	);
 
 	const xAxisConfig = $derived(
@@ -62,10 +60,10 @@
 			max: 100,
 			interval: 25,
 			rotation: 0,
-			format: (value: number) => value.toString(),
+			format: (value) => value.toString(),
 			fontSize: 12,
 			padding: 10,
-			filter: (value: number, index: number) => true,
+			filter: (value, index) => true,
 			gridLines: true,
 			gridLineColor: '#e0e0e0',
 			color: '#bdbdbd',
@@ -79,35 +77,32 @@
 	let svgRef = $state<SVGSVGElement | null>(null);
 	let resizeObserver: ResizeObserver;
 
-	let pointer = $state<
-		PointerState & {
-			series?: string;
-			categoryIndex?: number;
-			seriesIndex?: number;
-		}
-	>({
+	let pointer = $state<BarChartPointerState>({
 		x: 0,
 		y: [],
 		show: false,
 		data: null,
-		index: -1
+		index: -1,
+		categoryIndex: undefined,
+		seriesIndex: undefined
 	});
 
 	let containerWidth = $state(0);
 	let containerHeight = $state(0);
 	let popupDimensions = $state<Dimensions>({ width: 0, height: 0 });
 
+	// Derived values
 	let margin = $derived({
 		top: props.margins?.top ?? 20,
 		right: props.margins?.right ?? 30,
 		bottom:
-			(props.margins?.bottom ?? yAxisConfig.filter === (() => false))
+			props.margins?.bottom ??
+			(xAxisConfig.filter === (() => false)
 				? 20
-				: xAxisConfig.padding + xAxisConfig.fontSize * 1.5,
+				: xAxisConfig.padding + xAxisConfig.fontSize * 1.5),
 		left:
-			(props.margins?.left ?? yAxisConfig.filter === (() => false))
-				? 30
-				: yAxisConfig.padding + yAxisConfig.fontSize * 3.5
+			props.margins?.left ??
+			(yAxisConfig.filter === (() => false) ? 30 : yAxisConfig.padding + yAxisConfig.fontSize * 3.5)
 	});
 
 	let actualWidth = $derived(Math.max(containerWidth || 0, margin.left + margin.right + 100));
@@ -123,13 +118,12 @@
 	// Category and bar layout calculations
 	let categories = $derived(data.map((d) => d[xAxisLabel]));
 	let categoryWidth = $derived(innerWidth / Math.max(categories.length, 1));
-	let totalBarWidth = $derived(categoryWidth * 0.8); // 80% of category width
-	let barSpacing = $derived(totalBarWidth * 0.05);
+	let totalBarWidth = $derived(categoryWidth * (seriesConfig.barWidth ?? 0.8));
+	let barSpacing = $derived(totalBarWidth * (seriesConfig.barSpacing ?? 0.2));
 	let barWidth = $derived(
 		(totalBarWidth - barSpacing * (series.length - 1)) / Math.max(series.length, 1)
 	);
 
-	// Scales
 	let yScale = $derived(
 		d3
 			.scaleLinear()
@@ -153,14 +147,12 @@
 	});
 
 	function renderAxisAndGrid(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
-		// Calculate Y-axis ticks
 		const yTicks = d3.range(
 			yAxisConfig.min,
 			yAxisConfig.max + yAxisConfig.interval,
 			yAxisConfig.interval
 		);
 
-		// Add grid lines
 		if (yAxisConfig.gridLines) {
 			svg
 				.selectAll('.grid-line')
@@ -175,7 +167,6 @@
 				.attr('stroke-width', 1);
 		}
 
-		// Add Y axis labels
 		const filteredYTicks = yTicks.filter((value, index) => yAxisConfig.filter(value, index));
 		svg
 			.selectAll('.y-axis-label')
@@ -190,7 +181,6 @@
 			.attr('fill', yAxisConfig.color)
 			.text(yAxisConfig.format);
 
-		// Add axes
 		if (yAxisConfig.showAxis) {
 			svg
 				.append('line')
@@ -215,7 +205,6 @@
 				.attr('stroke-width', 1);
 		}
 
-		// Add category labels on X axis
 		svg
 			.selectAll('.x-axis-label')
 			.data(categories)
@@ -232,13 +221,9 @@
 	function render(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
 		if (!data?.length || !series?.length) return;
 
-		// Clear previous content
 		svg.selectAll('*').remove();
-
-		// Render axes and grid
 		renderAxisAndGrid(svg);
 
-		// Draw bars for each category and series
 		data.forEach((categoryData, categoryIndex) => {
 			series.forEach((seriesName, seriesIndex) => {
 				const barX = xScale(categoryIndex, seriesIndex);
@@ -252,7 +237,6 @@
 
 				const group = svg.append('g').attr('class', 'bar-group');
 
-				// Main bar
 				group
 					.append('rect')
 					.attr('x', barX)
@@ -261,11 +245,14 @@
 					.attr('height', barHeight)
 					.attr('fill', validColors[seriesIndex]);
 
-				// Hover effects
-				if (isHovered) {
-					// Right border
+				if (isHovered && seriesConfig.showHoverEffects) {
+					const { borderWidth = 2.5, borderOpacity = 0.3 } = seriesConfig.hoverStyle ?? {};
+
+					// Add hover effects
 					[-0.5, -1.5, -2.5].forEach((offset, i) => {
-						const opacity = [0.3, 0.15, 0.05][i];
+						const opacity = borderOpacity * [1, 0.5, 0.2][i];
+
+						// Right border
 						group
 							.append('line')
 							.attr('x1', barX + barWidth - offset)
@@ -273,13 +260,10 @@
 							.attr('x2', barX + barWidth - offset)
 							.attr('y2', actualHeight - margin.bottom)
 							.attr('stroke', '#000000')
-							.attr('stroke-width', 1)
+							.attr('stroke-width', borderWidth)
 							.attr('stroke-opacity', opacity);
-					});
 
-					// Left border
-					[-0.5, -1.5, -2.5].forEach((offset, i) => {
-						const opacity = [0.3, 0.15, 0.05][i];
+						// Left border
 						group
 							.append('line')
 							.attr('x1', barX + offset)
@@ -287,13 +271,10 @@
 							.attr('x2', barX + offset)
 							.attr('y2', actualHeight - margin.bottom)
 							.attr('stroke', '#000000')
-							.attr('stroke-width', 1)
+							.attr('stroke-width', borderWidth)
 							.attr('stroke-opacity', opacity);
-					});
 
-					// Top border
-					[-0.5, -1.5, -2.5].forEach((offset, i) => {
-						const opacity = [0.3, 0.15, 0.05][i];
+						// Top border
 						group
 							.append('line')
 							.attr('x1', barX + offset)
@@ -301,7 +282,7 @@
 							.attr('x2', barX + barWidth - offset)
 							.attr('y2', barY + offset)
 							.attr('stroke', '#000000')
-							.attr('stroke-width', 1)
+							.attr('stroke-width', borderWidth)
 							.attr('stroke-opacity', opacity);
 					});
 				}
@@ -318,7 +299,6 @@
 
 		let found = false;
 
-		// Check each category and series combination
 		for (let i = 0; i < data.length; i++) {
 			for (let j = 0; j < series.length; j++) {
 				const barX = xScale(i, j);
@@ -340,7 +320,7 @@
 						index: j,
 						series: series[j],
 						categoryIndex: i,
-						seriesIndex: j // Make sure this is passed
+						seriesIndex: j
 					};
 					found = true;
 					break;
@@ -378,13 +358,9 @@
 		containerHeight = rect.height;
 	}
 
-	let popupPosition = $derived(
-		calculatePopupPosition(pointer, margin, actualWidth, actualHeight, popupDimensions)
-	);
-
 	function calculatePopupPosition(
-		pointer: PointerState,
-		margin: any,
+		pointer: BarChartPointerState,
+		margin: Margin,
 		width: number,
 		height: number,
 		popup: Dimensions
@@ -394,31 +370,24 @@
 		}
 
 		const padding = 16;
-		const gap = 12; // Distance between popup and hovered points/bars
+		const gap = 12;
 
-		// For bar charts, we want to position relative to the bar's center (pointer.x)
-		// For line charts, we want to position relative to the actual point
 		const anchorX = pointer.x;
 		const anchorY = Math.min(...pointer.y);
 
-		// Try positioning to the left first
 		let left = anchorX - popup.width - gap;
 
-		// If it doesn't fit on the left, position to the right
 		if (left < margin.left + padding) {
 			left = anchorX + gap;
 		}
 
-		// Ensure popup stays within horizontal bounds
 		left = Math.max(
 			margin.left + padding,
 			Math.min(width - margin.right - popup.width - padding, left)
 		);
 
-		// For vertical positioning, we want to center relative to the point/bar
 		let top = anchorY - popup.height / 2;
 
-		// If this would cause vertical overflow, adjust accordingly
 		if (top < margin.top + padding) {
 			top = margin.top + padding;
 		} else if (top + popup.height > height - margin.bottom - padding) {
@@ -448,6 +417,10 @@
 			resizeObserver.disconnect();
 		}
 	});
+
+	let popupPosition = $derived(
+		calculatePopupPosition(pointer, margin, actualWidth, actualHeight, popupDimensions)
+	);
 </script>
 
 <div

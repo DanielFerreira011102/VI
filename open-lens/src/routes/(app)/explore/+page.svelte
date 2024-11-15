@@ -1,20 +1,28 @@
 <script lang="ts">
-	import type { AxisConfig, YAxisConfig, DataPoint } from '$lib/types/chart';
+	import type {
+		LineChartDataPoint,
+		BarChartDataPoint,
+		AxisConfig,
+		YAxisConfig,
+		StarChartProps
+	} from '$lib/types/chart';
 	import type { Term } from '$lib/types/term';
 	import type { Topic } from '$lib/types/topic';
 	import type { LoadingState } from '$lib/types/loading';
+
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { termStore } from '$lib/stores/termStore';
 	import { topicStore } from '$lib/stores/topicStore';
 	import { loadingStore } from '$lib/stores/loadingStore';
+
 	import TermIndicator from '$lib/components/TermIndicator.svelte';
 	import LineChart from '$lib/components/LineChart.svelte';
 	import BarChart from '$lib/components/BarChart.svelte';
 	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
 	import Select from '$lib/components/Select.svelte';
-	import { replaceState } from '$app/navigation';
+	import StarChart from '$lib/components/StarChart.svelte';
 
 	// Types
 	type MetricType = 'works' | 'citations' | 'avgCitations';
@@ -26,7 +34,7 @@
 	let selectedMetric = $state<MetricType>('works');
 	let loadingState = $state<LoadingState>({ isLoading: true, error: null });
 
-	// Chart configurations
+	// Line Chart Configurations
 	const xAxisConfig: AxisConfig = {
 		interval: 1,
 		format: (value) => value?.toString() || '',
@@ -56,16 +64,107 @@
 			return value.toString();
 		},
 		gridLines: true,
-		showAxis: false,
 		gridLineColor: '#e0e0e0',
 		color: '#bdbdbd',
+		showAxis: false,
 		axisColor: '#9e9e9e'
+	};
+
+	// Star Chart Configuration
+	const starChartConfig: StarChartProps = {
+		data: [
+			{
+				label: 'Sample 1',
+				color: '#fbd38d',
+				values: {
+					speed: 85,
+					power: 750000,
+					range: 42,
+					accuracy: 95,
+					control: 8
+				}
+			},
+			{
+				label: 'Sample 2',
+				color: '#4299e1',
+				values: {
+					speed: 92,
+					power: 900000,
+					range: 38,
+					accuracy: 88,
+					control: 6
+				}
+			}
+		],
+		axes: [
+			{
+				key: 'speed',
+				label: 'Speed',
+				maxValue: 100
+			},
+			{
+				key: 'power',
+				label: 'Power',
+				maxValue: 1000000
+			},
+			{
+				key: 'range',
+				label: 'Range',
+				maxValue: 50,
+				minValue: 0
+			},
+			{
+				key: 'accuracy',
+				label: 'Accuracy',
+				maxValue: 100,
+				minValue: 0
+			},
+			{
+				key: 'control',
+				label: 'Control',
+				maxValue: 10,
+				minValue: 0
+			}
+		],
+		gridConfig: {
+			circleCount: 4,
+			lineColor: '#ddd',
+			lineWidth: 0.5,
+			showLabels: true,
+			labelStyle: {
+				fontSize: 14,
+				color: '#666',
+				format: (value) => `${value}%`
+			}
+		},
+		axisConfig: {
+			lineColor: '#999',
+			lineWidth: 1,
+			labelStyle: {
+				fontSize: 14,
+				color: '#333',
+				distance: 40
+			}
+		},
+		seriesConfig: {
+			lineWidth: 4,
+			pointSize: 4,
+			showPoints: true,
+			fill: true,
+			fillOpacity: 0.1
+		},
+		margins: {
+			top: 60,
+			right: 40,
+			bottom: 60,
+			left: 40
+		}
 	};
 
 	// Chart state
 	type ChartState = {
-		lineData: DataPoint[];
-		averageData: DataPoint[];
+		lineData: LineChartDataPoint[];
+		averageData: BarChartDataPoint[];
 		termValues: string[];
 		termColors: string[];
 		lineYAxisConfig: YAxisConfig;
@@ -130,7 +229,7 @@
 		const lineData = Array.from(yearSet)
 			.sort()
 			.map((year) => {
-				const point: DataPoint = { year };
+				const point: LineChartDataPoint = { year };
 				selectedTerms.forEach((term) => {
 					const yearData = term.data?.counts_by_year?.find((c: any) => c.year === year);
 					point[term.value] = getMetricValue(yearData, selectedMetric);
@@ -150,7 +249,7 @@
 		const interval = Math.ceil(max / 4);
 
 		// Calculate averages for bar chart
-		const averages: DataPoint = {
+		const averages: BarChartDataPoint = {
 			category: 'Average',
 			...Object.fromEntries(
 				selectedTerms.map((term) => [
@@ -184,23 +283,23 @@
 	});
 
 	// Chart templates
-	const createLinePopup = (item: DataPoint) => `
-		<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
-			<div class="pb-2 font-semibold">${item.year}</div>
-			${selectedTerms
-				.map(
-					(term) => `
-			<div class="flex items-center justify-between h-4 mt-2">
-				<span class="truncate">${term.value}</span>
-				<span class="ml-4" style="color: ${term.color}">${(item[term.value] ?? 0).toLocaleString()}</span>
-			</div>
-			`
-				)
-				.join('')}
+	const createLinePopup = (item: LineChartDataPoint) => `
+	  <div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
+		<div class="pb-2 font-semibold">${item.year}</div>
+		${selectedTerms
+			.map(
+				(term) => `
+		<div class="flex items-center justify-between h-4 mt-2">
+		  <span class="truncate">${term.value}</span>
+		  <span class="ml-4" style="color: ${term.color}">${(item[term.value] ?? 0).toLocaleString()}</span>
 		</div>
+		`
+			)
+			.join('')}
+	  </div>
 	`;
 
-	const createBarPopup = (item: DataPoint, series: string, seriesIndex: number) => {
+	const createBarPopup = (item: BarChartDataPoint, series: string, seriesIndex: number) => {
 		const term = selectedTerms.find(
 			(term, index) => term.value === series && index === seriesIndex
 		);
@@ -208,17 +307,17 @@
 		if (!term) return '';
 
 		return `
-			<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
-				<div class="pb-2 font-semibold">Average</div>
-				<div class="flex items-center justify-between h-4 mt-2">
-					<span class="truncate">${series}</span>
-					<span class="ml-4" style="color: ${term.color}">${(item[series] ?? 0).toLocaleString()}</span>
-				</div>
-			</div>
-		`;
+		<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
+		  <div class="pb-2 font-semibold">Average</div>
+		  <div class="flex items-center justify-between h-4 mt-2">
+			<span class="truncate">${series}</span>
+			<span class="ml-4" style="color: ${term.color}">${(item[series] ?? 0).toLocaleString()}</span>
+		  </div>
+		</div>
+	  `;
 	};
 
-	// Initialization
+	// Initialization and store subscriptions remain the same
 	onMount(async () => {
 		await Promise.all([
 			termStore.initialize($page.url.search),
@@ -226,7 +325,6 @@
 		]);
 	});
 
-	// Store subscriptions
 	termStore.subscribe((value) => {
 		terms = value;
 	});
@@ -348,6 +446,15 @@
 									yAxisConfig={chartState.barYAxisConfig}
 									popupTemplate={createBarPopup}
 									margins={{ left: 30 }}
+									seriesConfig={{
+										barWidth: 0.8,
+										barSpacing: 0.05, // Reduced spacing between bars
+										showHoverEffects: true,
+										hoverStyle: {
+											borderWidth: 1,
+											borderOpacity: 0.25
+										}
+									}}
 								/>
 							</div>
 							<div class="col-span-10 h-80">
@@ -359,14 +466,26 @@
 									xAxisLabel="year"
 									{xAxisConfig}
 									yAxisConfig={chartState.lineYAxisConfig}
+									seriesConfig={{
+										lineWidth: 4,
+										pointSize: 4,
+										showPoints: false, // Set to false to hide dots
+										showHoverEffects: true,
+										hoverStyle: {
+											circleRadius: 6.5,
+											circleOpacity: 0.25
+										}
+									}}
 								/>
 							</div>
 						</div>
 					</div>
 				</div>
 				<div class="container mx-auto grid grid-cols-12 items-center justify-between gap-8 p-4">
-					<div class="col-span-8 w-full rounded-2xl bg-white p-4"></div>
-					<div class="col-span-4 w-full rounded-2xl bg-white p-4"></div>
+					<div class="col-span-6 w-full rounded-2xl bg-white p-4"></div>
+					<div class="col-span-6 h-[560px] w-full rounded-2xl bg-white p-4">
+						<StarChart {...starChartConfig} />
+					</div>
 				</div>
 				<div class="container mx-auto flex items-center justify-between p-4">
 					<div class="w-full rounded-2xl bg-white p-4"></div>

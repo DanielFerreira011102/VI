@@ -3,29 +3,15 @@
 	import * as d3 from 'd3';
 	import { measure } from '$lib/actions/measure';
 	import type {
-		AxisConfig,
-		YAxisConfig,
-		DataPoint,
-		PointerState,
+		LineChartProps,
+		LineChartPointerState,
+		LineChartDataPoint,
 		Dimensions,
-		PopupPosition
+		PopupPosition,
+		Margin
 	} from '$lib/types/chart';
 
-	const props = $props<{
-		data?: DataPoint[];
-		series?: string[];
-		colors?: string[];
-		popupTemplate?: (item: DataPoint, series?: string) => string;
-		xAxisLabel?: string;
-		xAxisConfig?: AxisConfig;
-		yAxisConfig?: YAxisConfig;
-		margins?: {
-			top?: number;
-			right?: number;
-			bottom?: number;
-			left?: number;
-		};
-	}>();
+	const props = $props<LineChartProps>();
 
 	// Initialize props with default values
 	const data = $derived(props.data ?? []);
@@ -33,13 +19,26 @@
 	const colors = $derived(props.colors ?? []);
 	const xAxisLabel = $derived(props.xAxisLabel ?? 'x');
 
+	const seriesConfig = $derived(
+		props.seriesConfig ?? {
+			lineWidth: 4,
+			pointSize: 4,
+			showPoints: true,
+			showHoverEffects: true,
+			hoverStyle: {
+				circleRadius: 6.5,
+				circleOpacity: 0.25
+			}
+		}
+	);
+
 	const popupTemplate = $derived(
 		props.popupTemplate ??
-			((item: DataPoint, series?: string) => `
-  <div class="bg-white shadow-lg rounded p-2">
-    ${series ? `${series}: ${item[series]}` : `Value: ${item.value}`}
-  </div>
-`)
+			((item: LineChartDataPoint, series?: string) => `
+	  <div class="bg-white shadow-lg rounded p-2">
+		${series ? `${series}: ${item[series]}` : `Value: ${item.value}`}
+	  </div>
+	`)
 	);
 
 	const xAxisConfig = $derived(
@@ -49,7 +48,7 @@
 			rotation: 0,
 			fontSize: 12,
 			padding: 20,
-			filter: (value, index) => true,
+			filter: (value: any, index: number) => true,
 			color: '#9e9e9e',
 			showAxis: true,
 			axisColor: '#9e9e9e'
@@ -79,7 +78,7 @@
 	let svgRef = $state<SVGSVGElement | null>(null);
 	let resizeObserver: ResizeObserver;
 
-	let pointer = $state<PointerState & { series?: string }>({
+	let pointer = $state<LineChartPointerState>({
 		x: 0,
 		y: [],
 		show: false,
@@ -96,13 +95,13 @@
 		top: props.margins?.top ?? 20,
 		right: props.margins?.right ?? 30,
 		bottom:
-			(props.margins?.bottom ?? yAxisConfig.filter === (() => false))
+			props.margins?.bottom ??
+			(xAxisConfig.filter === (() => false)
 				? 20
-				: xAxisConfig.padding + xAxisConfig.fontSize * 1.5,
+				: xAxisConfig.padding + xAxisConfig.fontSize * 1.5),
 		left:
-			(props.margins?.left ?? yAxisConfig.filter === (() => false))
-				? 30
-				: yAxisConfig.padding + yAxisConfig.fontSize * 3.5
+			props.margins?.left ??
+			(yAxisConfig.filter === (() => false) ? 30 : yAxisConfig.padding + yAxisConfig.fontSize * 3.5)
 	});
 
 	let actualWidth = $derived(Math.max(containerWidth || 0, margin.left + margin.right + 100));
@@ -136,14 +135,12 @@
 	});
 
 	function renderAxisAndGrid(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
-		// Calculate Y-axis ticks
 		const yTicks = d3.range(
 			yAxisConfig.min,
 			yAxisConfig.max + yAxisConfig.interval,
 			yAxisConfig.interval
 		);
 
-		// Add grid lines
 		if (yAxisConfig.gridLines) {
 			svg
 				.selectAll('.grid-line')
@@ -158,7 +155,6 @@
 				.attr('stroke-width', 1);
 		}
 
-		// Add Y axis labels
 		const filteredYTicks = yTicks.filter((value, index) => yAxisConfig.filter(value, index));
 		svg
 			.selectAll('.y-axis-label')
@@ -173,7 +169,6 @@
 			.attr('fill', yAxisConfig.color)
 			.text(yAxisConfig.format);
 
-		// Add axes
 		if (yAxisConfig.showAxis) {
 			svg
 				.append('line')
@@ -198,7 +193,6 @@
 				.attr('stroke-width', 1);
 		}
 
-		// Add X axis labels
 		const xTicks = d3
 			.range(0, data.length, xAxisConfig.interval)
 			.filter((index) => xAxisConfig.filter(data[index]?.[xAxisLabel], index));
@@ -224,16 +218,13 @@
 	function render(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
 		if (!data?.length || !series?.length) return;
 
-		// Clear previous content
 		svg.selectAll('*').remove();
 
-		// Render axes and grid
 		renderAxisAndGrid(svg);
 
-		// Add lines
 		series.forEach((seriesName, i) => {
 			const line = d3
-				.line<DataPoint>()
+				.line<LineChartDataPoint>()
 				.x((_, i) => xScale(i))
 				.y((d) => {
 					const value = d[seriesName];
@@ -247,20 +238,30 @@
 				.attr('class', 'line')
 				.attr('fill', 'none')
 				.attr('stroke', validColors[i])
-				.attr('stroke-width', 4)
+				.attr('stroke-width', seriesConfig.lineWidth)
 				.attr('d', line);
+
+			if (seriesConfig.showPoints) {
+				svg
+					.selectAll(`.points-${i}`)
+					.data(data.filter((d) => typeof d[seriesName] === 'number'))
+					.join('circle')
+					.attr('class', `points-${i}`)
+					.attr('cx', (_, i) => xScale(i))
+					.attr('cy', (d) => yScale(d[seriesName]))
+					.attr('r', seriesConfig.pointSize)
+					.attr('fill', validColors[i]);
+			}
 		});
 
-		// Add focus elements if pointer is active
-		if (pointer.show) {
-			addFocusElements(svg);
+		if (pointer.show && seriesConfig.showHoverEffects) {
+			addHoverEffects(svg);
 		}
 	}
 
-	function addFocusElements(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
+	function addHoverEffects(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
 		if (!pointer.show) return;
 
-		// Add vertical line
 		svg
 			.append('line')
 			.attr('class', 'focus-element')
@@ -272,17 +273,18 @@
 			.attr('stroke-width', 1)
 			.attr('stroke-opacity', 0.3);
 
-		// Add focus points
 		series.forEach((seriesName, i) => {
 			if (!pointer.data || typeof pointer.data[seriesName] !== 'number') return;
 
 			const focusGroup = svg.append('g').attr('class', 'focus-element');
 
-			// Ripple circles
 			[
-				{ r: 6.5, opacity: 0.05 },
-				{ r: 5.5, opacity: 0.1 },
-				{ r: 4.5, opacity: 0.25 }
+				{ r: seriesConfig.hoverStyle?.circleRadius ?? 6.5, opacity: 0.05 },
+				{ r: (seriesConfig.hoverStyle?.circleRadius ?? 6.5) - 1, opacity: 0.1 },
+				{
+					r: (seriesConfig.hoverStyle?.circleRadius ?? 6.5) - 2,
+					opacity: seriesConfig.hoverStyle?.circleOpacity ?? 0.25
+				}
 			].forEach(({ r, opacity }) => {
 				focusGroup
 					.append('circle')
@@ -295,12 +297,11 @@
 					.attr('fill', 'none');
 			});
 
-			// Center point
 			focusGroup
 				.append('circle')
 				.attr('cx', pointer.x)
 				.attr('cy', pointer.y[i])
-				.attr('r', 4)
+				.attr('r', seriesConfig.pointSize)
 				.attr('fill', validColors[i]);
 		});
 	}
@@ -359,8 +360,8 @@
 	}
 
 	function calculatePopupPosition(
-		pointer: PointerState,
-		margin: any,
+		pointer: LineChartPointerState,
+		margin: Margin,
 		width: number,
 		height: number,
 		popup: Dimensions
@@ -370,28 +371,22 @@
 		}
 
 		const padding = 16;
-		const gap = 32; // Distance between popup and hovered points
+		const gap = 32;
 
-		// Try positioning to the left first
 		let left = pointer.x - popup.width - gap;
 
-		// If it doesn't fit on the left, position to the right
 		if (left < margin.left + padding) {
 			left = pointer.x + gap;
 		}
 
-		// Ensure popup stays within horizontal bounds
 		left = Math.max(
 			margin.left + padding,
 			Math.min(width - margin.right - popup.width - padding, left)
 		);
 
-		// Calculate optimal vertical position by averaging all point positions
 		const averageY = pointer.y.reduce((sum, y) => sum + y, 0) / pointer.y.length;
-		// Center the popup vertically relative to the average point position
 		let top = averageY - popup.height / 2;
 
-		// Ensure popup stays within vertical bounds
 		top = Math.max(
 			margin.top + padding,
 			Math.min(height - margin.bottom - popup.height - padding, top)
