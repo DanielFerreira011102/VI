@@ -15,7 +15,7 @@
 		data?: DataPoint[];
 		series?: string[];
 		colors?: string[];
-		popupTemplate?: (item: DataPoint, series: string) => string;
+		popupTemplate?: (item: DataPoint, series: string, seriesIndex: number) => string;
 		xAxisLabel?: string;
 		xAxisConfig?: AxisConfig;
 		yAxisConfig?: YAxisConfig;
@@ -331,7 +331,7 @@
 					mouseX <= barX + barWidth &&
 					mouseY >= barY &&
 					mouseY <= barY + barHeight
-				) {
+					) {
 					pointer = {
 						x: barX + barWidth / 2,
 						y: [barY],
@@ -340,11 +340,11 @@
 						index: j,
 						series: series[j],
 						categoryIndex: i,
-						seriesIndex: j
+						seriesIndex: j  // Make sure this is passed
 					};
 					found = true;
 					break;
-				}
+					}
 			}
 			if (found) break;
 		}
@@ -458,8 +458,8 @@
 			class="pointer-events-none absolute"
 			style="left: {popupPosition.left}px; top: {popupPosition.top}px;"
 			role="tooltip"
-		>
-			{@html popupTemplate(pointer.data, pointer.series)}
+			>
+			{@html popupTemplate(pointer.data, pointer.series, pointer.seriesIndex)}
 		</div>
 	{/if}
 </div>

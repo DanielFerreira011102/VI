@@ -20,12 +20,12 @@
         });
     });
 
-    const handleSubmit = (id: string, value: string, label: string, group: 'institution' | 'search term') => {
+    const handleSubmit = (id: string, value: string) => {
         if (!value.trim() && wasCompareMap[id]) {
             handleRevert(id);
             return;
         }
-        termStore.updateTerm(id, value, label, group);
+        termStore.updateTerm(id, value);
         editingId = null;
         wasCompareMap[id] = false;
     };
@@ -41,7 +41,7 @@
         delete wasCompareMap[id];
     };
 
-    const handleBlur = (id: string, value: string, label: string, group: 'institution' | 'search term') => {
+    const handleBlur = (id: string, value: string) => {
         if (wasCompareMap[id]) {
             handleRevert(id);
             return;
@@ -51,7 +51,7 @@
             return;
         }
         if (editingId === id) {
-            termStore.updateTerm(id, value, label, group);
+            termStore.setType(id, 'selected');
             editingId = null;
         }
     };
@@ -78,9 +78,9 @@
                 {term}
                 autocomplete={props.autocomplete}
                 wasCompare={wasCompareMap[term.id]}
-                onSubmit={(value, label, group) => handleSubmit(term.id, value, label, group)}
+                onSubmit={(value) => handleSubmit(term.id, value)}
                 onDelete={() => handleDelete(term.id)}
-                onBlur={(value, label, group) => handleBlur(term.id, value, label, group)}
+                onBlur={(value) => handleBlur(term.id, value)}
                 onRevert={() => handleRevert(term.id)}
             />
         {:else if term.type === 'selected'}
@@ -96,11 +96,12 @@
                 {term}
                 autocomplete={props.autocomplete}
                 wasCompare={wasCompareMap[term.id]}
-                onSubmit={(value, label, group) => handleSubmit(term.id, value, label, group)}
+                onSubmit={(value) => handleSubmit(term.id, value)}
                 onDelete={() => handleDelete(term.id)}
-                onBlur={(value, label, group) => handleBlur(term.id, value, label, group)}
+                onBlur={(value) => handleBlur(term.id, value)}
                 onRevert={() => handleRevert(term.id)}
             />
         {/if}
     {/each}
 </div>
+    

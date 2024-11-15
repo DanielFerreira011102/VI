@@ -1,14 +1,12 @@
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
-import { ITEM_GROUPS, getGroupPrefix, type ItemGroup, type Term } from '$lib/types/term';
+import type { Term } from '$lib/types/term';
 import { TERM_COLORS, MAX_TERMS } from '$lib/constants/term';
 
 const createInitialTerm = (): Term => ({
     id: '1',
     value: '',
-    label: '',
     type: 'search',
-    group: null,
     color: TERM_COLORS[0]
 });
 
@@ -16,12 +14,10 @@ function createTermStore() {
     const { subscribe, set, update } = writable<Term[]>([createInitialTerm()]);
 
     const updateURL = (terms: Term[]) => {
+        console.log('Updating URL with terms:', terms);
         const selectedTerms = terms
             .filter((t) => t.type === 'selected')
-            .map((t) => {
-                const prefix = getGroupPrefix(t.group);
-                return encodeURIComponent(`${prefix}${t.value}`);
-            });
+            .map((t) => encodeURIComponent(t.value));
         const queryString = selectedTerms.length ? `?q=${selectedTerms.join(',')}` : '';
         goto(`/explore${queryString}`, { replaceState: true });
     };
@@ -33,9 +29,7 @@ function createTermStore() {
                 {
                     id: String(terms.length + 1),
                     value: '',
-                    label: '',
                     type: 'compare',
-                    group: null,
                     color: TERM_COLORS[terms.length]
                 }
             ];
@@ -61,40 +55,19 @@ function createTermStore() {
                 }
 
                 const params = new URLSearchParams(queryString);
-                const encodedTerms = params.get('q')?.split(',').filter(Boolean) || [];
+                const terms = params.get('q')?.split(',').filter(Boolean) || [];
 
-                if (!encodedTerms.length) {
+                if (!terms.length) {
                     set([createInitialTerm()]);
                     return;
                 }
 
-                const newTerms = encodedTerms.map((encoded, index) => {
-                    const decodedTerm = decodeURIComponent(encoded);
-                    
-                    // Check each group prefix
-                    for (const [group, prefix] of Object.entries(ITEM_GROUPS)) {
-                        if (decodedTerm.startsWith(prefix)) {
-                            const value = decodedTerm.slice(prefix.length);
-                            return {
-                                id: String(index + 1),
-                                value,      // Just the ID/value without prefix
-                                label: value, // This will be updated by the parent component
-                                type: 'selected' as const,
-                                group: group as ItemGroup,
-                                color: TERM_COLORS[index]
-                            };
-                        }
-                    }
-                    // If no prefix matches, it's a search term
-                    return {
-                        id: String(index + 1),
-                        value: decodedTerm,
-                        label: decodedTerm,
-                        type: 'selected' as const,
-                        group: 'search term',
-                        color: TERM_COLORS[index]
-                    };
-                });
+                const newTerms = terms.map((value, index) => ({
+                    id: String(index + 1),
+                    value,
+                    type: 'selected' as const,
+                    color: TERM_COLORS[index]
+                }));
 
                 set(addCompareTerm(newTerms));
             } catch (error) {
@@ -103,15 +76,20 @@ function createTermStore() {
             }
         },
 
-        updateTerm: (id: string, value: string, label: string, group: ItemGroup) => {
+        convertCompareToSearch: (id: string) => {
+            update((terms) => {
+                const updatedTerms = terms.map((term) =>
+                    term.id === id ? { ...term, type: 'search', value: '' } : term
+                );
+                return updatedTerms;
+            });
+        },
+
+        updateTerm: (id: string, value: string) => {
             update((terms) => {
                 const updatedTerms = terms
                     .filter((term) => term.type !== 'compare')
-                    .map((term) =>
-                        term.id === id
-                            ? { ...term, value, label, group, type: 'selected' }
-                            : term
-                    );
+                    .map((term) => (term.id === id ? { ...term, value, type: 'selected' } : term));
                 const finalTerms = addCompareTerm(updatedTerms);
                 updateURL(finalTerms);
                 return finalTerms;
@@ -122,15 +100,6 @@ function createTermStore() {
             update((terms) => {
                 const updatedTerms = terms.map((term) => (term.id === id ? { ...term, type } : term));
                 updateURL(updatedTerms);
-                return updatedTerms;
-            });
-        },
-
-        convertCompareToSearch: (id: string) => {
-            update((terms) => {
-                const updatedTerms = terms.map((term) =>
-                    term.id === id ? { ...term, type: 'search', value: '', label: '', group: null } : term
-                );
                 return updatedTerms;
             });
         },

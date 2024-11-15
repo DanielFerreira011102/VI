@@ -1,3 +1,4 @@
+//
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { AxisConfig, YAxisConfig, DataPoint } from '$lib/types/chart';
@@ -201,19 +202,22 @@
   </div>
 `;
 
-	const createBarPopup = (item: DataPoint, series: string) => {
-		const term = selectedTerms.find((term) => term.value === series);
-		if (!term) return '';
+	const createBarPopup = (item: DataPoint, series: string, seriesIndex: number) => {
+	const term = selectedTerms.find((term, index) => 
+		term.value === series && index === seriesIndex
+	);
+	
+	if (!term) return '';
 
-		return `
-    <div class="bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72">
-      <div class="pb-2 font-semibold">Average</div>
-      <div class="flex items-center justify-between h-4 mt-2">
-        <span class="truncate">${series}</span>
-        <span class="ml-4" style="color: ${term.color ?? '#000'}">${(item[series] ?? 0).toLocaleString()}</span>
-      </div>
-    </div>
-  `;
+	return `
+		<div class="bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72">
+		<div class="pb-2 font-semibold">Average</div>
+		<div class="flex items-center justify-between h-4 mt-2">
+			<span class="truncate">${series}</span>
+			<span class="ml-4" style="color: ${term.color ?? '#000'}">${(item[series] ?? 0).toLocaleString()}</span>
+		</div>
+		</div>
+	`;
 	};
 
 	// Initialize term store
@@ -240,7 +244,7 @@
 				minChars: 2,
 				processResult: (result) => {
 					return {
-						value: result.id.replace('https://openalex.org/', ''),
+						value: result.display_name,
 						label: result.display_name
 					};
 				}
