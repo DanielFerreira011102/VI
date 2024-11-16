@@ -6,9 +6,6 @@
 
 	$effect(() => {
 		console.log('Selected topic:', selectedTopic);
-		selectedTerms.forEach((term: Term) => {
-			console.log(term.data);
-		});
 	});
 </script>
 

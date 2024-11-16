@@ -34,6 +34,9 @@
 
     topicStore.subscribe((topic) => {
         selectedTopic = topic;
+        if (terms.some(term => term.type === 'selected')) {
+            termStore.refreshTopicData(topic.id);
+        }
     });
 
 	loadingStore.subscribe((value) => {
