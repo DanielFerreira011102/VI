@@ -1,3 +1,4 @@
+// termStore.ts
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import type { Term } from '$lib/types/term';

@@ -1,3 +1,4 @@
+// topicStore.ts
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import type { Topic } from '$lib/types/topic';

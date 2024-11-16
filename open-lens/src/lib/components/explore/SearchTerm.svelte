@@ -3,7 +3,7 @@
 	import type { Term } from '$lib/types/term';
 	import type { Option } from '$lib/types/option';
 	import MdClose from 'svelte-icons/md/MdClose.svelte';
-	import Dropdown from './Dropdown.svelte';
+	import Dropdown from '../Dropdown.svelte';
 	import { debounce } from '$lib/utils/debounce';
 
 	const props = $props<{

@@ -2,9 +2,9 @@
 	import { termStore } from '$lib/stores/termStore';
 	import type { Term } from '$lib/types/term';
 	import type { AutocompleteConfig } from '$lib/types/autocomplete';
-	import SearchTerm from '$lib/components/SearchTerm.svelte';
-	import SelectedTerm from '$lib/components/SelectedTerm.svelte';
-	import CompareTerm from '$lib/components/CompareTerm.svelte';
+	import SearchTerm from '$lib/components/explore/SearchTerm.svelte';
+	import SelectedTerm from '$lib/components/explore/SelectedTerm.svelte';
+	import CompareTerm from '$lib/components/explore/CompareTerm.svelte';
 
 	const props = $props<{
 		autocomplete?: AutocompleteConfig;
