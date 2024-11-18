@@ -2,8 +2,8 @@
 	import type { AutocompleteConfig } from '$lib/types/autocomplete';
 	import type { Option } from '$lib/types/option';
 	import { debounce } from '$lib/utils/debounce';
-	import MdArrowDropDown from 'svelte-icons/md/MdArrowDropDown.svelte';
 	import Dropdown from '$lib/components/Dropdown.svelte';
+	import MdArrowDropDown from 'svelte-icons/md/MdArrowDropDown.svelte';
 
 	let {
 		options = [],

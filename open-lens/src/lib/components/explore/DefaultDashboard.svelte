@@ -3,168 +3,21 @@
 	import type {
 		LineChartDataPoint,
 		BarChartDataPoint,
-		AxisConfig,
-		YAxisConfig,
-		StarChartProps
+		StarChartDataPoint,
+		YAxisConfig
 	} from '$lib/types/chart';
 
 	import LineChart from '$lib/components/LineChart.svelte';
 	import BarChart from '$lib/components/BarChart.svelte';
 	import StarChart from '$lib/components/StarChart.svelte';
-	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
 	import Select from '$lib/components/Select.svelte';
+	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
 
 	let { selectedTerms } = $props<{ selectedTerms: Term[] }>();
 
 	// Types
 	type MetricType = 'works' | 'citations' | 'avgCitations';
 	let selectedMetric = $state<MetricType>('works');
-
-	// Chart configurations
-	const xAxisConfig: AxisConfig = {
-		interval: 1,
-		format: (value) => value?.toString() || '',
-		rotation: 0,
-		fontSize: 14,
-		padding: 25,
-		filter: () => true,
-		color: '#9e9e9e',
-		showAxis: true,
-		axisColor: '#9e9e9e'
-	};
-
-	const baseYAxisConfig: YAxisConfig = {
-		min: 0,
-		max: 120,
-		interval: 30,
-		rotation: 0,
-		fontSize: 14,
-		padding: 15,
-		filter: (value, index) => index > 0,
-		format: (value: number) => {
-			if (value >= 1000000) {
-				return (value / 1000000).toFixed(1) + 'M';
-			} else if (value >= 1000) {
-				return (value / 1000).toFixed(1) + 'K';
-			}
-			return value.toString();
-		},
-		gridLines: true,
-		gridLineColor: '#e0e0e0',
-		color: '#bdbdbd',
-		showAxis: false,
-		axisColor: '#9e9e9e'
-	};
-
-	// Star Chart Configuration
-	const starChartConfig: StarChartProps = {
-		data: [
-			{
-				label: 'Sample 1',
-				color: '#fbd38d',
-				values: {
-					speed: 85,
-					power: 750000,
-					range: 42,
-					accuracy: 95,
-					control: 8
-				}
-			},
-			{
-				label: 'Sample 2',
-				color: '#4299e1',
-				values: {
-					speed: 92,
-					power: 900000,
-					range: 38,
-					accuracy: 88,
-					control: 6
-				}
-			}
-		],
-		axes: [
-			{
-				key: 'speed',
-				label: 'Speed',
-				maxValue: 100
-			},
-			{
-				key: 'power',
-				label: 'Power',
-				maxValue: 1000000
-			},
-			{
-				key: 'range',
-				label: 'Range',
-				maxValue: 50,
-				minValue: 0
-			},
-			{
-				key: 'accuracy',
-				label: 'Accuracy',
-				maxValue: 100,
-				minValue: 0
-			},
-			{
-				key: 'control',
-				label: 'Control',
-				maxValue: 10,
-				minValue: 0
-			}
-		],
-		gridConfig: {
-			circleCount: 4,
-			lineColor: '#ddd',
-			lineWidth: 0.5,
-			showLabels: true,
-			labelStyle: {
-				fontSize: 14,
-				color: '#666',
-				format: (value) => `${value}%`
-			}
-		},
-		axisConfig: {
-			lineColor: '#999',
-			lineWidth: 1,
-			labelStyle: {
-				fontSize: 14,
-				color: '#333',
-				distance: 40
-			}
-		},
-		seriesConfig: {
-			lineWidth: 4,
-			pointSize: 4,
-			showPoints: true,
-			fill: true,
-			fillOpacity: 0.1
-		},
-		margins: {
-			top: 60,
-			right: 40,
-			bottom: 60,
-			left: 40
-		}
-	};
-
-	// Chart state
-	type ChartState = {
-		lineData: LineChartDataPoint[];
-		averageData: BarChartDataPoint[];
-		termValues: string[];
-		termColors: string[];
-		lineYAxisConfig: YAxisConfig;
-		barYAxisConfig: YAxisConfig;
-	};
-
-	let chartState = $state<ChartState>({
-		lineData: [],
-		averageData: [],
-		termValues: [],
-		termColors: [],
-		lineYAxisConfig: { ...baseYAxisConfig, filter: (_, index) => index > 0 },
-		barYAxisConfig: { ...baseYAxisConfig, filter: () => false }
-	});
 
 	// Utility functions
 	const getMetricValue = (yearData: any, metric: MetricType): number => {
@@ -191,76 +44,279 @@
 		}
 	};
 
-	// Chart templates
-	const createLinePopup = (item: LineChartDataPoint) => `
-	  <div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
-		<div class="pb-2 font-semibold">${item.year}</div>
-		${selectedTerms
-			.map(
-				(term) => `
-		<div class="flex items-center justify-between h-4 mt-2">
-		  <span class="truncate">${term.value}</span>
-		  <span class="ml-4" style="color: ${term.color}">${(item[term.value] ?? 0).toLocaleString()}</span>
-		</div>
-		`
-			)
-			.join('')}
-	  </div>
-	`;
+	// Base configurations
+	const chartConfigs = {
+		line: {
+			xAxis: {
+				interval: 1,
+				format: (value: any) => value?.toString() || '',
+				rotation: 0,
+				fontSize: 14,
+				padding: 25,
+				filter: () => true,
+				color: '#9e9e9e',
+				showAxis: true,
+				axisColor: '#9e9e9e'
+			},
+			yAxis: {
+				min: 0,
+				max: 120,
+				interval: 30,
+				rotation: 0,
+				fontSize: 14,
+				padding: 15,
+				filter: (value: any, index: number) => index > 0,
+				format: (value: number) => {
+					if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+					if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+					return value.toString();
+				},
+				gridLines: true,
+				gridLineColor: '#e0e0e0',
+				color: '#bdbdbd',
+				showAxis: false,
+				axisColor: '#9e9e9e'
+			},
+			series: {
+				lineWidth: 4,
+				pointSize: 4,
+				showPoints: false,
+				showHoverEffects: true,
+				hoverStyle: {
+					circleRadius: 6.5,
+					circleOpacity: 0.25
+				}
+			}
+		},
+		bar: {
+			series: {
+				barWidth: 0.8,
+				barSpacing: 0.05,
+				showHoverEffects: true,
+				hoverStyle: {
+					borderWidth: 2,
+					borderOpacity: 0.15
+				}
+			}
+		},
+		star: {
+			axes: [
+				{
+					key: 'works_count',
+					label: 'Works Count',
+					minValue: 0,
+					gridConfig: {
+						fontSize: 14,
+						color: '#bdbdbd',
+						format: (value: number, index: number, total: number) => {
+							return `${(index / total) * 100}%`;
+						},
+						offsetX: 20,
+						offsetY: -10
+					}
+				},
+				{
+					key: 'cited_by_count',
+					label: 'Citations',
+					minValue: 0,
+					gridConfig: {
+						filter: () => false // Hide all labels for this axis
+					}
+				},
+				{
+					key: 'mean_citedness',
+					label: '2yr Mean Citedness',
+					minValue: 0,
+					gridConfig: {
+						filter: () => false // Hide all labels for this axis
+					}
+				},
+				{ key: 'h_index', label: 'H-Index', minValue: 0, gridConfig: { filter: () => false } },
+				{ key: 'i10_index', label: 'i10-Index', minValue: 0, gridConfig: { filter: () => false } }
+			],
+			grid: {
+				circleCount: 4,
+				lineColor: '#ddd',
+				lineWidth: 0.5
+			},
+			axis: {
+				lineColor: '#999',
+				lineWidth: 1,
+				labelStyle: {
+					fontSize: 14,
+					color: '#9e9e9e',
+					distance: 40
+				}
+			},
+			series: {
+				lineWidth: 4,
+				pointSize: 4,
+				showPoints: true,
+				fill: true,
+				fillOpacity: 0.1
+			},
+			margins: {
+				top: 60,
+				right: 40,
+				bottom: 60,
+				left: 40
+			}
+		}
+	};
 
-	const createBarPopup = (item: BarChartDataPoint, series: string, seriesIndex: number) => {
-		const term = selectedTerms.find(
-			(term, index) => term.value === series && index === seriesIndex
-		);
+	// Chart state type
+	type InstitutionChartState = {
+		yearly: {
+			data: LineChartDataPoint[];
+			yAxis: YAxisConfig;
+		};
+		average: {
+			data: BarChartDataPoint[];
+			yAxis: YAxisConfig;
+		};
+		stats: {
+			data: StarChartDataPoint[];
+		};
+		series: {
+			values: string[];
+			colors: string[];
+		};
+	};
 
-		if (!term) return '';
+	// Initialize chart state
+	let chartState = $state<InstitutionChartState>({
+		yearly: {
+			data: [],
+			yAxis: chartConfigs.line.yAxis
+		},
+		average: {
+			data: [],
+			yAxis: { ...chartConfigs.line.yAxis, filter: () => false }
+		},
+		stats: {
+			data: []
+		},
+		series: {
+			values: [],
+			colors: []
+		}
+	});
 
-		return `
-		<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
-		  <div class="pb-2 font-semibold">Average</div>
-		  <div class="flex items-center justify-between h-4 mt-2">
-			<span class="truncate">${series}</span>
-			<span class="ml-4" style="color: ${term.color}">${(item[series] ?? 0).toLocaleString()}</span>
-		  </div>
-		</div>
-	  `;
+	// Data transformers
+	const transformers = {
+		yearly: (terms: Term[], metric: MetricType): LineChartDataPoint[] => {
+			const yearSet = new Set<number>();
+			terms.forEach((term) => {
+				term.data?.counts_by_year?.forEach((count: any) => yearSet.add(count.year));
+			});
+
+			return Array.from(yearSet)
+				.sort()
+				.map((year) => {
+					const point: LineChartDataPoint = { year };
+					terms.forEach((term) => {
+						const yearData = term.data?.counts_by_year?.find((c: any) => c.year === year);
+						point[term.value] = getMetricValue(yearData, metric);
+					});
+					return point;
+				});
+		},
+		average: (yearlyData: LineChartDataPoint[], terms: Term[]): BarChartDataPoint[] => {
+			const averages: BarChartDataPoint = {
+				category: 'Average',
+				...Object.fromEntries(
+					terms.map((term) => [
+						term.value,
+						Math.round(
+							yearlyData.reduce((sum, point) => sum + (point[term.value] ?? 0), 0) /
+								yearlyData.length
+						)
+					])
+				)
+			};
+			return [averages];
+		},
+		stats: (terms: Term[]): StarChartDataPoint[] => {
+			if (!terms.length) return [];
+			return terms.map((term) => ({
+				label: term.value,
+				color: term.color,
+				values: {
+					works_count: term.data?.works_count ?? 0,
+					cited_by_count: term.data?.cited_by_count ?? 0,
+					mean_citedness: term.data?.summary_stats?.['2yr_mean_citedness'] ?? 0,
+					h_index: term.data?.summary_stats?.h_index ?? 0,
+					i10_index: term.data?.summary_stats?.i10_index ?? 0
+				}
+			}));
+		}
+	};
+
+	// Templates
+	const templates = {
+		yearly: (item: LineChartDataPoint) => `
+        <div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
+            <div class="pb-2 font-semibold">${item.year}</div>
+            ${selectedTerms
+							.map(
+								(term) => `
+                <div class="flex items-center justify-between h-4 mt-2">
+                    <span class="truncate">${term.value}</span>
+                    <span class="ml-4" style="color: ${term.color}">${(item[term.value] ?? 0).toLocaleString()}</span>
+                </div>
+                `
+							)
+							.join('')}
+        </div>
+    `,
+		average: (item: BarChartDataPoint, series: string, seriesIndex: number) => {
+			const term = selectedTerms.find(
+				(term, index) => term.value === series && index === seriesIndex
+			);
+			if (!term) return '';
+			return `
+            <div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
+                <div class="pb-2 font-semibold">Average</div>
+                <div class="flex items-center justify-between h-4 mt-2">
+                    <span class="truncate">${series}</span>
+                    <span class="ml-4" style="color: ${term.color}">${(item[series] ?? 0).toLocaleString()}</span>
+                </div>
+            </div>
+        `;
+		}
 	};
 
 	// Effect to update chart data
 	$effect(() => {
 		if (!selectedTerms.length) {
 			chartState = {
-				lineData: [],
-				averageData: [],
-				termValues: [],
-				termColors: [],
-				lineYAxisConfig: { ...baseYAxisConfig, filter: (_, index) => index > 0 },
-				barYAxisConfig: { ...baseYAxisConfig, filter: () => false }
+				yearly: {
+					data: [],
+					yAxis: chartConfigs.line.yAxis
+				},
+				average: {
+					data: [],
+					yAxis: { ...chartConfigs.line.yAxis, filter: () => false }
+				},
+				stats: {
+					data: []
+				},
+				series: {
+					values: [],
+					colors: []
+				}
 			};
 			return;
 		}
 
-		// Collect all years from selected terms
-		const yearSet = new Set<number>();
-		selectedTerms.forEach((term) => {
-			term.data?.counts_by_year?.forEach((count: any) => yearSet.add(count.year));
-		});
+		// Transform data for all charts
+		const yearlyData = transformers.yearly(selectedTerms, selectedMetric);
+		const averageData = transformers.average(yearlyData, selectedTerms);
+		const statsData = transformers.stats(selectedTerms);
 
-		// Generate line chart data
-		const lineData = Array.from(yearSet)
-			.sort()
-			.map((year) => {
-				const point: LineChartDataPoint = { year };
-				selectedTerms.forEach((term) => {
-					const yearData = term.data?.counts_by_year?.find((c: any) => c.year === year);
-					point[term.value] = getMetricValue(yearData, selectedMetric);
-				});
-				return point;
-			});
-
-		// Calculate max value for y-axis
+		// Calculate y-axis configurations
 		const maxValue = Math.max(
-			...lineData.flatMap((point) =>
+			...yearlyData.flatMap((point) =>
 				Object.values(point).filter((value) => typeof value === 'number' && value !== point.year)
 			),
 			1
@@ -268,37 +324,28 @@
 
 		const max = Math.ceil(maxValue / 100) * 100;
 		const interval = Math.ceil(max / 4);
-
-		// Calculate averages for bar chart
-		const averages: BarChartDataPoint = {
-			category: 'Average',
-			...Object.fromEntries(
-				selectedTerms.map((term) => [
-					term.value,
-					Math.round(
-						lineData.reduce((sum, point) => sum + (point[term.value] ?? 0), 0) / lineData.length
-					)
-				])
-			)
+		const yAxisConfig = {
+			...chartConfigs.line.yAxis,
+			max,
+			interval
 		};
 
 		// Update chart state
 		chartState = {
-			lineData,
-			averageData: [averages],
-			termValues: selectedTerms.map((term) => term.value),
-			termColors: selectedTerms.map((term) => term.color),
-			lineYAxisConfig: {
-				...baseYAxisConfig,
-				filter: (_, index) => index > 0,
-				max,
-				interval
+			yearly: {
+				data: yearlyData,
+				yAxis: { ...yAxisConfig, filter: (_, index) => index > 0 }
 			},
-			barYAxisConfig: {
-				...baseYAxisConfig,
-				filter: () => false,
-				max,
-				interval
+			average: {
+				data: averageData,
+				yAxis: { ...yAxisConfig, filter: () => false }
+			},
+			stats: {
+				data: statsData
+			},
+			series: {
+				values: selectedTerms.map((term) => term.value),
+				colors: selectedTerms.map((term) => term.color)
 			}
 		};
 	});
@@ -333,44 +380,27 @@
 		<div class="grid w-full grid-cols-12 px-4 pb-8 pt-12">
 			<div class="col-span-2 h-80">
 				<BarChart
-					data={chartState.averageData}
-					series={chartState.termValues}
-					colors={chartState.termColors}
+					data={chartState.average.data}
+					series={chartState.series.values}
+					colors={chartState.series.colors}
 					xAxisLabel="category"
-					{xAxisConfig}
-					yAxisConfig={chartState.barYAxisConfig}
-					popupTemplate={createBarPopup}
+					xAxisConfig={chartConfigs.line.xAxis}
+					yAxisConfig={chartState.average.yAxis}
+					popupTemplate={templates.average}
 					margins={{ left: 30 }}
-					seriesConfig={{
-						barWidth: 0.8,
-						barSpacing: 0.05,
-						showHoverEffects: true,
-						hoverStyle: {
-							borderWidth: 2,
-							borderOpacity: 0.15
-						}
-					}}
+					seriesConfig={chartConfigs.bar.series}
 				/>
 			</div>
 			<div class="col-span-10 h-80">
 				<LineChart
-					data={chartState.lineData}
-					series={chartState.termValues}
-					colors={chartState.termColors}
-					popupTemplate={createLinePopup}
+					data={chartState.yearly.data}
+					series={chartState.series.values}
+					colors={chartState.series.colors}
+					popupTemplate={templates.yearly}
 					xAxisLabel="year"
-					{xAxisConfig}
-					yAxisConfig={chartState.lineYAxisConfig}
-					seriesConfig={{
-						lineWidth: 4,
-						pointSize: 4,
-						showPoints: false,
-						showHoverEffects: true,
-						hoverStyle: {
-							circleRadius: 6.5,
-							circleOpacity: 0.25
-						}
-					}}
+					xAxisConfig={chartConfigs.line.xAxis}
+					yAxisConfig={chartState.yearly.yAxis}
+					seriesConfig={chartConfigs.line.series}
 				/>
 			</div>
 		</div>
@@ -379,7 +409,14 @@
 <div class="container mx-auto grid grid-cols-12 items-center justify-between gap-8 p-4">
 	<div class="col-span-6 w-full rounded-2xl bg-white p-4"></div>
 	<div class="col-span-6 h-[560px] w-full rounded-2xl bg-white p-4">
-		<StarChart {...starChartConfig} />
+		<StarChart
+			data={chartState.stats.data}
+			axes={chartConfigs.star.axes}
+			gridConfig={chartConfigs.star.grid}
+			axisConfig={chartConfigs.star.axis}
+			seriesConfig={chartConfigs.star.series}
+			margins={chartConfigs.star.margins}
+		/>
 	</div>
 </div>
 <div class="container mx-auto flex items-center justify-between p-4">

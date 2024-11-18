@@ -7,7 +7,7 @@
 		LineChartPointerState,
 		LineChartDataPoint,
 		Dimensions,
-		PopupPosition,
+		Position,
 		Margin
 	} from '$lib/types/chart';
 
@@ -365,34 +365,31 @@
 		width: number,
 		height: number,
 		popup: Dimensions
-	): PopupPosition {
+	): Position {
 		if (!pointer.show || !pointer.data || width <= 0 || height <= 0) {
-			return { left: 0, top: 0 };
+			return { x: 0, y: 0 };
 		}
 
 		const padding = 16;
 		const gap = 32;
 
-		let left = pointer.x - popup.width - gap;
+		let x = pointer.x - popup.width - gap;
 
-		if (left < margin.left + padding) {
-			left = pointer.x + gap;
+		if (x < margin.left + padding) {
+			x = pointer.x + gap;
 		}
 
-		left = Math.max(
-			margin.left + padding,
-			Math.min(width - margin.right - popup.width - padding, left)
-		);
+		x = Math.max(margin.left + padding, Math.min(width - margin.right - popup.width - padding, x));
 
 		const averageY = pointer.y.reduce((sum, y) => sum + y, 0) / pointer.y.length;
-		let top = averageY - popup.height / 2;
+		let y = averageY - popup.height / 2;
 
-		top = Math.max(
+		y = Math.max(
 			margin.top + padding,
-			Math.min(height - margin.bottom - popup.height - padding, top)
+			Math.min(height - margin.bottom - popup.height - padding, y)
 		);
 
-		return { left, top };
+		return { x, y };
 	}
 
 	function handleMeasure(dimensions: Dimensions) {
@@ -439,7 +436,7 @@
 		<div
 			use:measure={handleMeasure}
 			class="pointer-events-none absolute"
-			style="left: {popupPosition.left}px; top: {popupPosition.top}px;"
+			style="left: {popupPosition.x}px; top: {popupPosition.y}px;"
 			role="tooltip"
 		>
 			{@html popupTemplate(pointer.data, pointer.series)}

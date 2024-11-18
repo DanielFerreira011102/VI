@@ -7,7 +7,7 @@
 		BarChartPointerState,
 		BarChartDataPoint,
 		Dimensions,
-		PopupPosition,
+		Position,
 		Margin
 	} from '$lib/types/chart';
 
@@ -364,9 +364,9 @@
 		width: number,
 		height: number,
 		popup: Dimensions
-	): PopupPosition {
+	): Position {
 		if (!pointer.show || !pointer.data || width <= 0 || height <= 0) {
-			return { left: 0, top: 0 };
+			return { x: 0, y: 0 };
 		}
 
 		const padding = 16;
@@ -375,26 +375,23 @@
 		const anchorX = pointer.x;
 		const anchorY = Math.min(...pointer.y);
 
-		let left = anchorX - popup.width - gap;
+		let x = anchorX - popup.width - gap;
 
-		if (left < margin.left + padding) {
-			left = anchorX + gap;
+		if (x < margin.left + padding) {
+			x = anchorX + gap;
 		}
 
-		left = Math.max(
-			margin.left + padding,
-			Math.min(width - margin.right - popup.width - padding, left)
-		);
+		x = Math.max(margin.left + padding, Math.min(width - margin.right - popup.width - padding, x));
 
-		let top = anchorY - popup.height / 2;
+		let y = anchorY - popup.height / 2;
 
-		if (top < margin.top + padding) {
-			top = margin.top + padding;
-		} else if (top + popup.height > height - margin.bottom - padding) {
-			top = height - margin.bottom - popup.height - padding;
+		if (y < margin.top + padding) {
+			y = margin.top + padding;
+		} else if (y + popup.height > height - margin.bottom - padding) {
+			y = height - margin.bottom - popup.height - padding;
 		}
 
-		return { left, top };
+		return { x, y };
 	}
 
 	function handleMeasure(dimensions: Dimensions) {
@@ -441,7 +438,7 @@
 		<div
 			use:measure={handleMeasure}
 			class="pointer-events-none absolute"
-			style="left: {popupPosition.left}px; top: {popupPosition.top}px;"
+			style="left: {popupPosition.x}px; top: {popupPosition.y}px;"
 			role="tooltip"
 		>
 			{@html popupTemplate(pointer.data, pointer.series, pointer.seriesIndex)}

@@ -1,21 +1,18 @@
-// types/chart.ts
+type Dimensions = {
+	width: number;
+	height: number;
+};
 
-// Common Base Types
-type BaseMargin = {
+type Margin = {
 	top: number;
 	right: number;
 	bottom: number;
 	left: number;
 };
 
-type Dimensions = {
-	width: number;
-	height: number;
-};
-
-type PopupPosition = {
-	left: number;
-	top: number;
+type Position = {
+	x: number;
+	y: number;
 };
 
 type BaseAxisConfig = {
@@ -147,18 +144,21 @@ type StarChartAxis = {
 	label: string;
 	minValue?: number;
 	maxValue?: number;
+	autoScale?: boolean;
+	gridConfig?: {
+		format?: (value: number, index: number, total: number) => string;
+		fontSize?: number;
+		color?: string;
+		filter?: (value: number, index: number, total: number) => boolean;
+		offsetX?: number;
+		offsetY?: number;
+	};
 };
 
 type StarChartGridConfig = {
 	circleCount?: number;
 	lineColor?: string;
 	lineWidth?: number;
-	showLabels?: boolean;
-	labelStyle?: {
-		fontSize?: number;
-		color?: string;
-		format?: (value: number) => string;
-	};
 };
 
 type StarChartAxisConfig = {
@@ -182,18 +182,18 @@ type StarChartSeriesConfig = {
 type StarChartProps = {
 	data: StarChartDataPoint[];
 	axes: StarChartAxis[];
-	margins?: Partial<BaseMargin>;
+	margins?: Partial<Margin>;
 	gridConfig?: StarChartGridConfig;
 	axisConfig?: StarChartAxisConfig;
 	seriesConfig?: StarChartSeriesConfig;
 };
 
 export type {
-	BaseMargin as Margin,
+	Margin,
 	BaseAxisConfig as AxisConfig,
 	BaseYAxisConfig as YAxisConfig,
 	Dimensions,
-	PopupPosition,
+	Position,
 	// Line Chart exports
 	LineChartDataPoint,
 	LineChartPointerState,

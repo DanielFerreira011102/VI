@@ -5,7 +5,7 @@
 
 	const props = $props<StarChartProps>();
 
-	// Initialize props with default values
+	// Initialize props with default values and ensure we have at least one axis
 	const data = $derived(props.data ?? []);
 	const axes = $derived(props.axes ?? []);
 
@@ -13,13 +13,7 @@
 	const defaultGridConfig: Required<NonNullable<StarChartProps['gridConfig']>> = {
 		circleCount: 4,
 		lineColor: '#e5e7eb',
-		lineWidth: 1,
-		showLabels: true,
-		labelStyle: {
-			fontSize: 12,
-			color: '#9ca3af',
-			format: (value: number) => `${value.toFixed(0)}%`
-		}
+		lineWidth: 1
 	};
 
 	const defaultAxisConfig: Required<NonNullable<StarChartProps['axisConfig']>> = {
@@ -40,20 +34,42 @@
 		fillOpacity: 0.2
 	};
 
+	// Default axis grid config
+	const defaultAxisGridConfig = {
+		format: (value: number, _index: number, _total: number) => value.toString(),
+		fontSize: 12,
+		color: '#9ca3af',
+		filter: (_: number, _i: number, _t: number) => true,
+		offsetX: 0,
+		offsetY: 0
+	};
+
 	// Merge provided configs with defaults
 	const gridConfig = $derived({ ...defaultGridConfig, ...props.gridConfig });
 	const axisConfig = $derived({ ...defaultAxisConfig, ...props.axisConfig });
 	const seriesConfig = $derived({ ...defaultSeriesConfig, ...props.seriesConfig });
 
-	// Rest of the component logic remains similar, but using the new config values
 	function getAxisBounds(axisKey: string) {
-		const axis = axes.find((a) => a.key === axisKey)!;
-		const values = data.map((d) => d.values[axisKey]).filter((v) => v !== undefined);
+		const axis = axes.find((a) => a.key === axisKey);
+		if (!axis) return { minValue: 0, maxValue: 100 }; // Default bounds if axis not found
 
-		const minValue = axis.minValue ?? Math.min(0, ...values);
-		const maxValue = axis.maxValue ?? Math.max(...values);
+		const values = data.map((d) => d.values[axisKey]).filter((v): v is number => v !== undefined);
+		if (values.length === 0) return { minValue: 0, maxValue: 100 }; // Default bounds if no values
 
-		return { minValue, maxValue };
+		// Get the actual min and max from the data
+		const dataMin = Math.min(...values);
+		const dataMax = Math.max(...values);
+
+		// autoScale defaults to true if not explicitly set to false
+		if (axis.autoScale !== false) {
+			const minValue = axis.minValue !== undefined ? Math.min(axis.minValue, dataMin) : dataMin;
+			const maxValue = axis.maxValue !== undefined ? Math.max(axis.maxValue, dataMax) : dataMax;
+			return { minValue, maxValue };
+		} else {
+			const minValue = axis.minValue ?? dataMin;
+			const maxValue = axis.maxValue ?? dataMax;
+			return { minValue, maxValue };
+		}
 	}
 
 	// Local state
@@ -83,56 +99,85 @@
 
 	function getScaleForAxis(axis: StarChartAxis) {
 		const { minValue, maxValue } = getAxisBounds(axis.key);
-		return d3.scaleLinear().domain([minValue, maxValue]).range([0, radius]);
+		const scale = d3.scaleLinear().domain([minValue, maxValue]).range([0, radius]);
+
+		// Only clamp if autoScale is explicitly set to false
+		if (axis.autoScale === false) {
+			scale.clamp(true);
+		}
+
+		return scale;
 	}
 
 	function render(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
+		if (axes.length === 0) return;
+
 		svg.selectAll('*').remove();
 
 		const numAxes = axes.length;
 		const angleStep = (2 * Math.PI) / numAxes;
 
-		// Draw circular grid lines
-		const firstAxisBounds = getAxisBounds(axes[0].key);
-		const valueRange = firstAxisBounds.maxValue - firstAxisBounds.minValue;
-		const valueStep = valueRange / gridConfig.circleCount;
-
-		// Draw concentric circles for the grid
-		for (let i = 1; i <= gridConfig.circleCount; i++) {
-			const value = firstAxisBounds.minValue + i * valueStep;
-			const rScale = getScaleForAxis(axes[0]);
-			const r = rScale(value);
-
-			svg
-				.append('circle')
-				.attr('cx', centerX)
-				.attr('cy', centerY)
-				.attr('r', r)
-				.attr('fill', 'none')
-				.attr('stroke', gridConfig.lineColor)
-				.attr('stroke-width', gridConfig.lineWidth);
-
-			if (gridConfig.showLabels) {
-				const labelX = centerX;
-				const labelY = centerY - r;
-
-				svg
-					.append('text')
-					.attr('x', labelX)
-					.attr('y', labelY)
-					.attr('dy', -4)
-					.attr('text-anchor', 'middle')
-					.attr('font-size', gridConfig.labelStyle.fontSize)
-					.attr('fill', gridConfig.labelStyle.color)
-					.text(gridConfig.labelStyle.format(value));
-			}
-		}
-
-		// Draw axes lines and labels
+		// Draw grid circles and labels for each axis
 		axes.forEach((axis, axisIndex) => {
+			const axisBounds = getAxisBounds(axis.key);
+			const valueRange = axisBounds.maxValue - axisBounds.minValue;
+			const valueStep = valueRange / gridConfig.circleCount;
 			const angle = axisIndex * angleStep - Math.PI / 2;
-			const rScale = getScaleForAxis(axis);
 
+			// Merge axis grid config with defaults
+			const axisGridConfig = {
+				...defaultAxisGridConfig,
+				...axis.gridConfig
+			};
+
+			// Draw grid lines and labels
+			for (let i = 1; i <= gridConfig.circleCount; i++) {
+				const value = axisBounds.minValue + i * valueStep;
+				const rScale = getScaleForAxis(axis);
+				const r = rScale(value);
+
+				// Only draw the circle for the first axis to avoid overlapping
+				if (axisIndex === 0) {
+					svg
+						.append('circle')
+						.attr('cx', centerX)
+						.attr('cy', centerY)
+						.attr('r', r)
+						.attr('fill', 'none')
+						.attr('stroke', gridConfig.lineColor)
+						.attr('stroke-width', gridConfig.lineWidth);
+				}
+
+				// Draw label if it passes the filter
+				if (axisGridConfig.filter(value, i, gridConfig.circleCount)) {
+					const labelX = centerX + r * Math.cos(angle);
+					const labelY = centerY + r * Math.sin(angle);
+
+					// Calculate text anchor based on angle
+					const textAnchor =
+						Math.abs(angle + Math.PI / 2) < 0.1
+							? 'middle'
+							: angle < -Math.PI
+								? 'start'
+								: angle < 0
+									? 'end'
+									: angle < Math.PI
+										? 'start'
+										: 'end';
+
+					svg
+						.append('text')
+						.attr('x', labelX + (axisGridConfig.offsetX ?? 0)) // Add X offset
+						.attr('y', labelY + (axisGridConfig.offsetY ?? 0)) // Add Y offset
+						.attr('dy', '0.3em')
+						.attr('text-anchor', textAnchor)
+						.attr('font-size', axisGridConfig.fontSize)
+						.attr('fill', axisGridConfig.color)
+						.text(axisGridConfig.format(value, i, gridConfig.circleCount));
+				}
+			}
+
+			// Draw axis line
 			const x2 = centerX + radius * Math.cos(angle);
 			const y2 = centerY + radius * Math.sin(angle);
 
@@ -145,6 +190,7 @@
 				.attr('stroke', axisConfig.lineColor)
 				.attr('stroke-width', axisConfig.lineWidth);
 
+			// Draw axis label
 			const labelRadius = radius + axisConfig.labelStyle.distance;
 			const labelX = centerX + labelRadius * Math.cos(angle);
 			const labelY = centerY + labelRadius * Math.sin(angle);
@@ -169,14 +215,15 @@
 				const angle = i * angleStep - Math.PI / 2;
 				return [centerX + r * Math.cos(angle), centerY + r * Math.sin(angle)];
 			});
-			points.push(points[0]); // Close the shape
+
+			const closedPoints = [...points, points[0]];
 
 			// Draw filled area if enabled
 			if (seriesConfig.fill) {
 				svg
 					.append('path')
-					.datum(points)
-					.attr('d', d3.line())
+					.datum(closedPoints)
+					.attr('d', d3.line()!)
 					.attr('fill', series.color)
 					.attr('fill-opacity', seriesConfig.fillOpacity);
 			}
@@ -184,15 +231,15 @@
 			// Draw the connecting lines
 			svg
 				.append('path')
-				.datum(points)
-				.attr('d', d3.line())
+				.datum(closedPoints)
+				.attr('d', d3.line()!)
 				.attr('fill', 'none')
 				.attr('stroke', series.color)
 				.attr('stroke-width', seriesConfig.lineWidth);
 
 			// Draw the points
 			if (seriesConfig.showPoints) {
-				points.slice(0, -1).forEach(([x, y]) => {
+				points.forEach(([x, y]) => {
 					svg
 						.append('circle')
 						.attr('cx', x)
@@ -203,6 +250,13 @@
 			}
 		});
 	}
+
+	// Add effect to trigger render when data, axes, or dimensions change
+	$effect(() => {
+		if (svgRef && data && axes.length > 0 && actualWidth > 0 && actualHeight > 0) {
+			render(d3.select(svgRef));
+		}
+	});
 
 	function handleResize() {
 		if (!chart) return;
@@ -235,7 +289,7 @@
 	role="img"
 	aria-label="Star chart visualization"
 >
-	{#if actualWidth > 0 && actualHeight > 0}
+	{#if actualWidth > 0 && actualHeight > 0 && axes.length > 0}
 		<svg bind:this={svgRef} width={actualWidth} height={actualHeight} />
 	{/if}
 </div>
