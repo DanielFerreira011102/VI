@@ -161,6 +161,45 @@
 				bottom: 60,
 				left: 40
 			}
+		},
+		apc: {
+			xAxis: {
+				interval: 1,
+				format: (value: any) => value?.toString() || '',
+				rotation: 0,
+				fontSize: 14,
+				padding: 25,
+				filter: () => true,
+				color: '#9e9e9e',
+				showAxis: true,
+				axisColor: '#9e9e9e'
+			},
+			yAxis: {
+				min: 0,
+				rotation: 0,
+				fontSize: 14,
+				padding: 15,
+				filter: (value: any, index: number) => index > 0,
+				format: (value: number) => {
+					if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+					if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+					return `$${value}`;
+				},
+				gridLines: true,
+				gridLineColor: '#e0e0e0',
+				color: '#bdbdbd',
+				showAxis: false,
+				axisColor: '#9e9e9e'
+			},
+			series: {
+				barWidth: 0.8,
+				barSpacing: 0.03,
+				showHoverEffects: true,
+				hoverStyle: {
+					borderWidth: 2,
+					borderOpacity: 0.15
+				}
+			}
 		}
 	};
 
@@ -176,6 +215,10 @@
 		};
 		stats: {
 			data: StarChartDataPoint[];
+		};
+		apc: {
+			data: BarChartDataPoint[];
+			yAxis: YAxisConfig;
 		};
 		series: {
 			values: string[];
@@ -196,6 +239,10 @@
 		stats: {
 			data: []
 		},
+		apc: {
+			data: [],
+			yAxis: { ...chartConfigs.line.yAxis, filter: (_, index) => index > 0 }
+		},
 		series: {
 			values: [],
 			colors: []
@@ -207,6 +254,7 @@
 		yearly: (terms: Term[], metric: MetricType): LineChartDataPoint[] => {
 			const yearSet = new Set<number>();
 			terms.forEach((term) => {
+				console.log('TD', term.data);
 				term.data?.counts_by_year?.forEach((count: any) => yearSet.add(count.year));
 			});
 
@@ -249,6 +297,13 @@
 					i10_index: term.data?.summary_stats?.i10_index ?? 0
 				}
 			}));
+		},
+		apc: (terms: Term[]): BarChartDataPoint[] => {
+			return terms.map((term) => ({
+				category: term.value,
+				apc_list_sum_usd: term.data?.works?.meta?.apc_list_sum_usd || 0,
+				apc_paid_sum_usd: term.data?.works?.meta?.apc_paid_sum_usd || 0
+			}));
 		}
 	};
 
@@ -283,6 +338,22 @@
                 </div>
             </div>
         `;
+		},
+		apc: (item: BarChartDataPoint, series: string, seriesIndex: number) => {
+			const term = selectedTerms.find((term) => term.value === item.category);
+			if (!term) return '';
+			const isListPrice = series === 'apc_list_sum_usd';
+			return `
+				<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
+					<div class="pb-2 font-semibold">${term.value}</div>
+					<div class="flex items-center justify-between h-4 mt-2">
+						<span class="truncate">${isListPrice ? 'List Price' : 'Paid Amount'}</span>
+						<span class="ml-4" style="color: ${term.color}">
+							$${(item[series] || 0).toLocaleString()}
+						</span>
+					</div>
+				</div>
+			`;
 		}
 	};
 
@@ -301,6 +372,10 @@
 				stats: {
 					data: []
 				},
+				apc: {
+					data: [],
+					yAxis: { ...chartConfigs.line.yAxis, filter: (_, index) => index > 0 }
+				},
 				series: {
 					values: [],
 					colors: []
@@ -313,6 +388,7 @@
 		const yearlyData = transformers.yearly(selectedTerms, selectedMetric);
 		const averageData = transformers.average(yearlyData, selectedTerms);
 		const statsData = transformers.stats(selectedTerms);
+		const apcData = transformers.apc(selectedTerms);
 
 		// Calculate y-axis configurations
 		const maxValue = Math.max(
@@ -330,6 +406,14 @@
 			interval
 		};
 
+		// Calculate max value for APC chart
+		const maxApcValue = Math.max(
+			...apcData.flatMap((point) => [point.apc_list_sum_usd, point.apc_paid_sum_usd]),
+			1
+		);
+		const apcMax = Math.ceil(maxApcValue / 1000) * 1000;
+		const apcInterval = Math.ceil(apcMax / 4);
+
 		// Update chart state
 		chartState = {
 			yearly: {
@@ -342,6 +426,14 @@
 			},
 			stats: {
 				data: statsData
+			},
+			apc: {
+				data: apcData,
+				yAxis: {
+					...chartConfigs.apc.yAxis,
+					max: apcMax,
+					interval: apcInterval
+				}
 			},
 			series: {
 				values: selectedTerms.map((term) => term.value),
@@ -407,8 +499,34 @@
 	</div>
 </div>
 <div class="container mx-auto grid grid-cols-12 items-center justify-between gap-8 p-4">
-	<div class="col-span-6 w-full rounded-2xl bg-white p-4"></div>
-	<div class="col-span-6 h-[560px] w-full rounded-2xl bg-white p-4">
+	<div class="col-span-6 h-[520px] w-full rounded-2xl bg-white p-4">
+		<div class="mb-4 flex items-center space-x-4">
+			<h2 class="text-2xl leading-6 text-gray-900">Article Processing Charges</h2>
+			<button class="h-8 w-8 text-gray-500">
+				<MdHelpOutline />
+			</button>
+		</div>
+		<BarChart
+			data={chartState.apc.data}
+			series={['apc_list_sum_usd', 'apc_paid_sum_usd']}
+			colors={selectedTerms.flatMap((term, i) => [
+				term.color,                    // List price color (full opacity)
+				term.color + '80'             // Paid amount color (50% opacity)
+			])}
+			xAxisLabel="category"
+			xAxisConfig={chartConfigs.apc.xAxis}
+			yAxisConfig={chartState.apc.yAxis}
+			popupTemplate={templates.apc}
+			seriesConfig={chartConfigs.apc.series}
+			margins={{
+				top: 20,
+				right: 20,
+				bottom: 60,
+				left: 60
+			}}
+		/>
+	</div>
+	<div class="col-span-6 h-[520px] w-full rounded-2xl bg-white p-4">
 		<StarChart
 			data={chartState.stats.data}
 			axes={chartConfigs.star.axes}

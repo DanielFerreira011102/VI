@@ -30,25 +30,20 @@ function createTermStore() {
 			if (!institution) return null;
 
 			// If topic is selected, fetch topic-specific data
-			if (topicId && topicId !== 'allTopics') {
-				const topicResponse = await fetch(
-					`https://api.openalex.org/works?page=1&filter=authorships.institutions.lineage:${institution.id.replace('https://openalex.org/', '')},primary_topic.id:${topicId}`
-				);
-				if (!topicResponse.ok)
-					throw new Error(`Topic API request failed for institution: ${institution.id}`);
-				const topicData = await topicResponse.json();
+			const topicResponse = await fetch(
+				`https://api.openalex.org/works?page=1&filter=authorships.institutions.lineage:${institution.id.replace('https://openalex.org/', '')}&apc_sum=true&cited_by_count_sum=true` +
+					(topicId && topicId !== 'allTopics' ? `,primary_topic.id:${topicId}` : '')
+			);
 
-				// Merge topic-specific data with institution data
-				return {
-					...institution,
-					topic_data: {
-						works_count: topicData.meta.count
-						// Add any other topic-specific metrics you want to track
-					}
-				};
-			}
+			if (!topicResponse.ok)
+				throw new Error(`Topic API request failed for institution: ${institution.id}`);
 
-			return institution;
+			const topicData = await topicResponse.json();
+
+			return {
+				...institution,
+				works: topicData
+			};
 		} catch (error) {
 			console.error(`Error fetching data for ${term}:`, error);
 			return null;

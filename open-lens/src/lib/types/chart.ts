@@ -78,7 +78,7 @@ type LineChartProps = {
 	/** Y-axis configuration */
 	yAxisConfig?: BaseYAxisConfig;
 	/** Chart margins */
-	margins?: Partial<BaseMargin>;
+	margins?: Partial<Margin>;
 	/** Series appearance configuration */
 	seriesConfig?: LineChartSeriesConfig;
 };
@@ -127,7 +127,7 @@ type BarChartProps = {
 	/** Y-axis configuration */
 	yAxisConfig?: BaseYAxisConfig;
 	/** Chart margins */
-	margins?: Partial<BaseMargin>;
+	margins?: Partial<Margin>;
 	/** Series appearance configuration */
 	seriesConfig?: BarChartSeriesConfig;
 };

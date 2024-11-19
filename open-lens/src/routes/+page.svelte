@@ -37,7 +37,7 @@
 		format: (value: any) => value?.toString() || '',
 		rotation: 0,
 		fontSize: 12,
-		padding: 20,
+		padding: 10,
 		filter: (value: any, index: number) => true,
 		color: '#9e9e9e',
 		showAxis: true,
@@ -67,6 +67,9 @@
 		{series}
 		{colors}
 		xAxisLabel="category"
+		seriesConfig={{
+			barSpacing: 0.02
+		}}
 		{xAxisConfig}
 		{yAxisConfig}
 		{popupTemplate}

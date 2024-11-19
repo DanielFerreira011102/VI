@@ -219,76 +219,79 @@
 	}
 
 	function render(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
-		if (!data?.length || !series?.length) return;
+    if (!data?.length || !series?.length) return;
 
-		svg.selectAll('*').remove();
-		renderAxisAndGrid(svg);
+    svg.selectAll('*').remove();
+    renderAxisAndGrid(svg);
 
-		data.forEach((categoryData, categoryIndex) => {
-			series.forEach((seriesName, seriesIndex) => {
-				const barX = xScale(categoryIndex, seriesIndex);
-				const value = categoryData[seriesName];
-				const barY = yScale(value);
-				const barHeight = actualHeight - margin.bottom - barY;
-				const isHovered =
-					pointer.show &&
-					pointer.categoryIndex === categoryIndex &&
-					pointer.seriesIndex === seriesIndex;
+    data.forEach((categoryData, categoryIndex) => {
+        series.forEach((seriesName, seriesIndex) => {
+            const barX = xScale(categoryIndex, seriesIndex);
+            const value = categoryData[seriesName];
+            const barY = yScale(value);
+            const barHeight = actualHeight - margin.bottom - barY;
+            const isHovered =
+                pointer.show &&
+                pointer.categoryIndex === categoryIndex &&
+                pointer.seriesIndex === seriesIndex;
 
-				const group = svg.append('g').attr('class', 'bar-group');
+            // Calculate the color index based on both category and series
+            const colorIndex = categoryIndex * series.length + seriesIndex;
+            
+            const group = svg.append('g').attr('class', 'bar-group');
 
-				group
-					.append('rect')
-					.attr('x', barX)
-					.attr('y', barY)
-					.attr('width', barWidth)
-					.attr('height', barHeight)
-					.attr('fill', validColors[seriesIndex]);
+            group
+                .append('rect')
+                .attr('x', barX)
+                .attr('y', barY)
+                .attr('width', barWidth)
+                .attr('height', barHeight)
+                .attr('fill', validColors[colorIndex] || '#9e9e9e');
 
-				if (isHovered && seriesConfig.showHoverEffects) {
-					const { borderWidth = 2.5, borderOpacity = 0.3 } = seriesConfig.hoverStyle ?? {};
+            if (isHovered && seriesConfig.showHoverEffects) {
+                const { borderWidth = 2.5, borderOpacity = 0.3 } = seriesConfig.hoverStyle ?? {};
 
-					// Add hover effects
-					[-0.5, -1.5, -2.5].forEach((offset, i) => {
-						const opacity = borderOpacity * [1, 0.5, 0.2][i];
+                // Add hover effects
+                [-0.5, -1.5, -2.5].forEach((offset, i) => {
+                    const opacity = borderOpacity * [1, 0.5, 0.2][i];
 
-						// Right border
-						group
-							.append('line')
-							.attr('x1', barX + barWidth - offset)
-							.attr('y1', barY + offset)
-							.attr('x2', barX + barWidth - offset)
-							.attr('y2', actualHeight - margin.bottom)
-							.attr('stroke', '#000000')
-							.attr('stroke-width', borderWidth)
-							.attr('stroke-opacity', opacity);
+                    // Right border
+                    group
+                        .append('line')
+                        .attr('x1', barX + barWidth - offset)
+                        .attr('y1', barY + offset)
+                        .attr('x2', barX + barWidth - offset)
+                        .attr('y2', actualHeight - margin.bottom)
+                        .attr('stroke', '#000000')
+                        .attr('stroke-width', borderWidth)
+                        .attr('stroke-opacity', opacity);
 
-						// Left border
-						group
-							.append('line')
-							.attr('x1', barX + offset)
-							.attr('y1', barY + offset)
-							.attr('x2', barX + offset)
-							.attr('y2', actualHeight - margin.bottom)
-							.attr('stroke', '#000000')
-							.attr('stroke-width', borderWidth)
-							.attr('stroke-opacity', opacity);
+                    // Left border
+                    group
+                        .append('line')
+                        .attr('x1', barX + offset)
+                        .attr('y1', barY + offset)
+                        .attr('x2', barX + offset)
+                        .attr('y2', actualHeight - margin.bottom)
+                        .attr('stroke', '#000000')
+                        .attr('stroke-width', borderWidth)
+                        .attr('stroke-opacity', opacity);
 
-						// Top border
-						group
-							.append('line')
-							.attr('x1', barX + offset)
-							.attr('y1', barY + offset)
-							.attr('x2', barX + barWidth - offset)
-							.attr('y2', barY + offset)
-							.attr('stroke', '#000000')
-							.attr('stroke-width', borderWidth)
-							.attr('stroke-opacity', opacity);
-					});
-				}
-			});
-		});
-	}
+                    // Top border
+                    group
+                        .append('line')
+                        .attr('x1', barX + offset)
+                        .attr('y1', barY + offset)
+                        .attr('x2', barX + barWidth - offset)
+                        .attr('y2', barY + offset)
+                        .attr('stroke', '#000000')
+                        .attr('stroke-width', borderWidth)
+                        .attr('stroke-opacity', opacity);
+                });
+            }
+        });
+    });
+};
 
 	function handleMouseMove(event: MouseEvent) {
 		if (!svgRef || !data?.length) return;
