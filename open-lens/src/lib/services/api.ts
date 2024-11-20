@@ -105,7 +105,10 @@ async function fetchWithTimeout(url: string, timeout: number): Promise<Response>
 	}
 }
 
-export const fetchInstitutionData = async (term: string, topicId?: string): Promise<Institution | null> => {
+export const fetchInstitutionData = async (
+	term: string,
+	topicId?: string
+): Promise<Institution | null> => {
 	const cacheKey = `${term}-${topicId || 'all'}`;
 	const cachedResult = institutionCache.get(cacheKey);
 	if (cachedResult) {
@@ -116,7 +119,6 @@ export const fetchInstitutionData = async (term: string, topicId?: string): Prom
 		try {
 			// First request: get institution
 			const institutionUrl = `https://api.openalex.org/institutions?search=${encodeURIComponent(term)}&select=id,display_name,relevance_score,works_count,cited_by_count,summary_stats,counts_by_year`;
-
 
 			const institutionResponse = await fetchWithRetry(institutionUrl, API_TIMEOUT);
 			if (!institutionResponse.ok) throw new Error(`API request failed for term: ${term}`);

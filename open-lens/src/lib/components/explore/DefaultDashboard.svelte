@@ -600,7 +600,7 @@
 			/>
 		</div>
 		<div class="w-full px-4 pb-8 pt-12">
-			<div class="w-full h-80">
+			<div class="h-80 w-full">
 				<LineChart
 					data={chartState.yearly.data}
 					series={chartState.series.values}
