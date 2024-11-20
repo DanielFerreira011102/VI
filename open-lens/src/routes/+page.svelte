@@ -76,14 +76,20 @@
 		{popupTemplate}
 	/>
 </div>
-<div class="h-[400px] w-full">
+<div class="h-112 w-full">
 	<PieChart
 		data={[
-			{ label: 'A', value: 30 },
-			{ label: 'B', value: 45 },
+			{ label: 'A', value: 40 },
+			{ label: 'B', value: 75 },
 			{ label: 'C', value: 25 }
 		]}
 		colors={['#ff6b6b', '#4ecdc4', '#45b7d1']}
+		popupTemplate={(item: any) => `
+		  <div class="bg-white shadow-lg rounded p-2">
+			<div class="font-bold">${item.label}</div>
+			<div>value: ${item.value}</div>
+		  </div>
+		`}
 		seriesConfig={{
 			innerRadius: 0.6,
 			padAngle: 0.02,

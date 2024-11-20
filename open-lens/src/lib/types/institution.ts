@@ -14,5 +14,10 @@ export interface Institution {
 		works_count: number;
 		cited_by_count: number;
 	}[];
-	topic_data?: any;
+	works?: {
+		apc_list_sum_usd: number;
+		apc_paid_sum_usd: number;
+		cited_by_count_sum: number;
+		count: number;
+	}
 }

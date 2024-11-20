@@ -162,32 +162,32 @@
 			.attr('fill', (_, i) => validColors[i]);
 
 		// Add hover effect
-        if (pointer.show && pointer.data && seriesConfig.showHoverEffects) {
-    const hoveredArc = arcs[pointer.index];
-    const { borderWidth = 2.5, borderOpacity = 0.3 } = seriesConfig.hoverStyle ?? {};
+		if (pointer.show && pointer.data && seriesConfig.showHoverEffects) {
+			const hoveredArc = arcs[pointer.index];
+			const { borderWidth = 2.5, borderOpacity = 0.3 } = seriesConfig.hoverStyle ?? {};
 
-    [-0.5, -1.5, -2.5].forEach((offset, i) => {
-        const opacity = borderOpacity * [1, 0.5, 0.2][i];
-        const angleOffset = offset / radius;
-        
-        // Create arc with offset on all sides
-        const borderArc = d3
-            .arc<d3.PieArcDatum<PieChartDataPoint>>()
-            .innerRadius(radius * (seriesConfig.innerRadius ?? 0) + offset)
-            .outerRadius(radius - offset)
-            .startAngle(hoveredArc.startAngle + angleOffset)
-            .endAngle(hoveredArc.endAngle - angleOffset)
-            .cornerRadius(seriesConfig.cornerRadius ?? 0);
+			[-0.5, -1.5, -2.5].forEach((offset, i) => {
+				const opacity = borderOpacity * [1, 0.5, 0.2][i];
+				const angleOffset = offset / radius;
 
-        // Add the border arc
-        g.append('path')
-            .attr('d', borderArc(hoveredArc))
-            .attr('fill', 'none')
-            .attr('stroke', '#000000')
-            .attr('stroke-width', borderWidth)
-            .attr('stroke-opacity', opacity);
-    });
-}
+				// Create arc with offset on all sides
+				const borderArc = d3
+					.arc<d3.PieArcDatum<PieChartDataPoint>>()
+					.innerRadius(radius * (seriesConfig.innerRadius ?? 0) + offset)
+					.outerRadius(radius - offset)
+					.startAngle(hoveredArc.startAngle + angleOffset)
+					.endAngle(hoveredArc.endAngle - angleOffset)
+					.cornerRadius(seriesConfig.cornerRadius ?? 0);
+
+				// Add the border arc
+				g.append('path')
+					.attr('d', borderArc(hoveredArc))
+					.attr('fill', 'none')
+					.attr('stroke', '#000000')
+					.attr('stroke-width', borderWidth)
+					.attr('stroke-opacity', opacity);
+			});
+		}
 	}
 
 	function handleMouseMove(event: MouseEvent) {

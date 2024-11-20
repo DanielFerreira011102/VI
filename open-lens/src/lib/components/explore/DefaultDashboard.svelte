@@ -310,8 +310,8 @@
 		apc: (terms: Term[]): BarChartDataPoint[] => {
 			return terms.map((term) => ({
 				category: term.value,
-				apc_list_sum_usd: term.data?.works?.meta?.apc_list_sum_usd || 0,
-				apc_paid_sum_usd: term.data?.works?.meta?.apc_paid_sum_usd || 0
+				apc_list_sum_usd: term.data?.works?.apc_list_sum_usd || 0,
+				apc_paid_sum_usd: term.data?.works?.apc_paid_sum_usd || 0
 			}));
 		}
 	};
@@ -574,5 +574,44 @@
 	</div>
 </div>
 <div class="container mx-auto flex items-center justify-between p-4">
-	<div class="w-full rounded-2xl bg-white p-4"></div>
+	<div class="w-full rounded-2xl bg-white p-4">
+		<div class="flex items-center justify-between p-4">
+			<div class="flex items-center space-x-4">
+				<h1 class="text-2xl leading-6 text-gray-900">
+					{getMetricLabel(selectedMetric)} Over Time
+				</h1>
+				<button class="h-8 w-8 text-gray-500">
+					<MdHelpOutline />
+				</button>
+			</div>
+			<Select
+				options={[
+					{ value: 'works', label: 'Works' },
+					{ value: 'citations', label: 'Citations' },
+					{ value: 'avgCitations', label: 'Average Citations' }
+				]}
+				autoFocusDropdown={true}
+				onChange={(option) => (selectedMetric = option.value as MetricType)}
+				buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
+				dropdownClassName="min-w-48"
+				dropdownPadding="1rem"
+				dropdownOptionHeight="3.5rem"
+				dropdownTop="-1rem"
+			/>
+		</div>
+		<div class="w-full px-4 pb-8 pt-12">
+			<div class="w-full h-80">
+				<LineChart
+					data={chartState.yearly.data}
+					series={chartState.series.values}
+					colors={chartState.series.colors}
+					popupTemplate={templates.yearly}
+					xAxisLabel="year"
+					xAxisConfig={chartConfigs.line.xAxis}
+					yAxisConfig={chartState.yearly.yAxis}
+					seriesConfig={chartConfigs.line.series}
+				/>
+			</div>
+		</div>
+	</div>
 </div>

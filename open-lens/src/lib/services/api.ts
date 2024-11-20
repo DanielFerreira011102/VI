@@ -1,4 +1,5 @@
 // src/lib/services/api.ts
+import type { Institution } from '$lib/types/institution';
 import { institutionCache } from './cache';
 
 const API_TIMEOUT = 5000;
@@ -104,7 +105,7 @@ async function fetchWithTimeout(url: string, timeout: number): Promise<Response>
 	}
 }
 
-export const fetchInstitutionData = async (term: string, topicId?: string) => {
+export const fetchInstitutionData = async (term: string, topicId?: string): Promise<Institution | null> => {
 	const cacheKey = `${term}-${topicId || 'all'}`;
 	const cachedResult = institutionCache.get(cacheKey);
 	if (cachedResult) {
@@ -114,7 +115,8 @@ export const fetchInstitutionData = async (term: string, topicId?: string) => {
 	return requestQueue.add(async () => {
 		try {
 			// First request: get institution
-			const institutionUrl = `https://api.openalex.org/institutions?filter=display_name.search:${encodeURIComponent(term)}`;
+			const institutionUrl = `https://api.openalex.org/institutions?search=${encodeURIComponent(term)}&select=id,display_name,relevance_score,works_count,cited_by_count,summary_stats,counts_by_year`;
+
 
 			const institutionResponse = await fetchWithRetry(institutionUrl, API_TIMEOUT);
 			if (!institutionResponse.ok) throw new Error(`API request failed for term: ${term}`);
@@ -124,13 +126,11 @@ export const fetchInstitutionData = async (term: string, topicId?: string) => {
 
 			if (!institution) return null;
 
+			const id = institution.id.replace('https://openalex.org/', '');
 			// Second request: get topic data
-			const topicUrl = `https://api.openalex.org/works?page=1&filter=authorships.institutions.lineage:${institution.id.replace(
-				'https://openalex.org/',
-				''
-			)}&apc_sum=true&cited_by_count_sum=true${
-				topicId && topicId !== 'allTopics' ? `&filter=primary_topic.id:${topicId}` : ''
-			}`;
+			const topicUrl = `https://api.openalex.org/works?filter=authorships.institutions.lineage:${id}${
+				topicId && topicId !== 'allTopics' ? `,primary_topic.id:${topicId}` : ''
+			}&apc_sum=true&cited_by_count_sum=true&per-page=1`;
 
 			const topicResponse = await fetchWithRetry(topicUrl, API_TIMEOUT);
 			if (!topicResponse.ok) {
@@ -139,9 +139,14 @@ export const fetchInstitutionData = async (term: string, topicId?: string) => {
 
 			const topicData = await topicResponse.json();
 
-			const result = {
+			const result: Institution = {
 				...institution,
-				works: topicData
+				works: {
+					apc_list_sum_usd: topicData.meta.apc_list_sum_usd,
+					apc_paid_sum_usd: topicData.meta.apc_paid_sum_usd,
+					cited_by_count_sum: topicData.meta.cited_by_count_sum,
+					count: topicData.meta.count
+				}
 			};
 
 			institutionCache.set(cacheKey, result);
