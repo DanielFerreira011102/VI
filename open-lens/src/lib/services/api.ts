@@ -115,9 +115,8 @@ export const fetchInstitutionData = async (term: string, topicId?: string): Prom
 	return requestQueue.add(async () => {
 		try {
 			// First request: get institution
-			const institutionUrl = `https://api.openalex.org/institutions?search=${encodeURIComponent(term)}&select=id,display_name,relevance_score,works_count,cited_by_count,summary_stats,counts_by_year`;
-
-
+			const institutionUrl = `https://api.openalex.org/institutions?search=${encodeURIComponent(term)}&select=id,display_name,relevance_score,works_count,cited_by_count,summary_stats,counts_by_year,topics`;
+			console.log(`URL: ${institutionUrl}`);
 			const institutionResponse = await fetchWithRetry(institutionUrl, API_TIMEOUT);
 			if (!institutionResponse.ok) throw new Error(`API request failed for term: ${term}`);
 
@@ -137,8 +136,11 @@ export const fetchInstitutionData = async (term: string, topicId?: string): Prom
 				throw new Error(`Topic API request failed for institution: ${institution.id}`);
 			}
 
-			const topicData = await topicResponse.json();
+			console.log(`Fetched data for ${term}`);
+			console.log(institution)
 
+			const topicData = await topicResponse.json();
+			
 			const result: Institution = {
 				...institution,
 				works: {
