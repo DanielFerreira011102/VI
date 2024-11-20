@@ -24,5 +24,5 @@ export interface Institution {
 		apc_paid_sum_usd: number;
 		cited_by_count_sum: number;
 		count: number;
-	}
+	};
 }

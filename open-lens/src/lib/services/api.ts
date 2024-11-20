@@ -105,7 +105,10 @@ async function fetchWithTimeout(url: string, timeout: number): Promise<Response>
 	}
 }
 
-export const fetchInstitutionData = async (term: string, topicId?: string): Promise<Institution | null> => {
+export const fetchInstitutionData = async (
+	term: string,
+	topicId?: string
+): Promise<Institution | null> => {
 	const cacheKey = `${term}-${topicId || 'all'}`;
 	const cachedResult = institutionCache.get(cacheKey);
 	if (cachedResult) {
