@@ -2,8 +2,8 @@
 	import type { AutocompleteConfig } from '$lib/types/autocomplete';
 	import type { Term } from '$lib/types/term';
 	import type { Option } from '$lib/types/option';
-	import MdClose from 'svelte-icons/md/MdClose.svelte';
 	import Dropdown from '../Dropdown.svelte';
+	import MdClose from 'svelte-icons/md/MdClose.svelte';
 	import { debounce } from '$lib/utils/debounce';
 
 	const props = $props<{
@@ -156,8 +156,8 @@
 	});
 </script>
 
-<div class="relative w-full flex-1">
-	<div class="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+<div class="relative w-full flex-1 rounded-2xl border border-neutral-200 bg-white">
+	<div class="overflow-hidden">
 		<input
 			bind:this={inputElement}
 			type="search"

@@ -4,6 +4,7 @@ import type { Term } from '$lib/types/term';
 import { TERM_COLORS, MAX_TERMS } from '$lib/constants/term';
 import { loadingStore } from './loadingStore';
 import { topicStore } from './topicStore';
+import { fetchInstitutionData } from '$lib/services/api';
 
 const createInitialTerm = (): Term => ({
 	id: '1',
@@ -17,39 +18,6 @@ function createTermStore() {
 	const store = writable<Term[]>([createInitialTerm()]);
 	const { subscribe, set, update } = store;
 
-	const fetchInstitutionData = async (term: string, topicId?: string) => {
-		try {
-			// First fetch basic institution data
-			const response = await fetch(
-				`https://api.openalex.org/institutions?filter=display_name.search:${encodeURIComponent(term)}`
-			);
-			if (!response.ok) throw new Error(`API request failed for term: ${term}`);
-			const data = await response.json();
-			const institution = data.results[0];
-
-			if (!institution) return null;
-
-			// If topic is selected, fetch topic-specific data
-			const topicResponse = await fetch(
-				`https://api.openalex.org/works?page=1&filter=authorships.institutions.lineage:${institution.id.replace('https://openalex.org/', '')}&apc_sum=true&cited_by_count_sum=true` +
-					(topicId && topicId !== 'allTopics' ? `,primary_topic.id:${topicId}` : '')
-			);
-
-			if (!topicResponse.ok)
-				throw new Error(`Topic API request failed for institution: ${institution.id}`);
-
-			const topicData = await topicResponse.json();
-
-			return {
-				...institution,
-				works: topicData
-			};
-		} catch (error) {
-			console.error(`Error fetching data for ${term}:`, error);
-			return null;
-		}
-	};
-
 	const updateURL = (terms: Term[]) => {
 		const searchParams = new URLSearchParams(window.location.search);
 
@@ -59,13 +27,14 @@ function createTermStore() {
 			.join(',');
 
 		if (selectedTerms) {
+			// Properly encode the query parameter
 			searchParams.set('q', selectedTerms);
 		} else {
 			searchParams.delete('q');
 		}
 
 		const newURL = `/explore${searchParams.toString() ? `?${searchParams}` : ''}`;
-		goto(decodeURI(newURL), { replaceState: true });
+		goto(newURL, { replaceState: true }); // Removed decodeURI here
 	};
 
 	const addCompareTerm = (terms: Term[]): Term[] =>
@@ -89,15 +58,16 @@ function createTermStore() {
 
 		const updatedTerms = [...terms];
 
-		for (const term of selectedTerms) {
+		const refreshPromises = selectedTerms.map(async (term) => {
 			const index = terms.findIndex((t) => t.id === term.id);
 			if (index !== -1) {
 				updatedTerms[index] = { ...term, isLoading: true };
 				const data = await fetchInstitutionData(term.value, topicId);
 				updatedTerms[index] = { ...term, isLoading: false, data };
 			}
-		}
+		});
 
+		await Promise.all(refreshPromises);
 		return updatedTerms;
 	};
 
@@ -107,7 +77,16 @@ function createTermStore() {
 			loadingStore.startLoading();
 			try {
 				const params = new URLSearchParams(queryString);
-				const terms = params.get('q')?.split(',').filter(Boolean) || [];
+				const queryParam = params.get('q');
+
+				// Properly decode the query parameter and split by comma
+				const terms = queryParam
+					? decodeURIComponent(queryParam)
+							.split(',')
+							.map((term) => term.trim())
+							.filter(Boolean)
+					: [];
+
 				const currentTopic = get(topicStore);
 
 				if (!terms.length) {
@@ -126,17 +105,23 @@ function createTermStore() {
 
 				set(addCompareTerm(termsWithLoading));
 
-				const results = await Promise.all(
-					terms.map((term) => fetchInstitutionData(term, currentTopic.id))
-				);
+				// Use Promise.all instead of Promise.allSettled for more immediate error handling
+				try {
+					const results = await Promise.all(
+						terms.map((term) => fetchInstitutionData(term, currentTopic.id))
+					);
 
-				const updatedTerms = termsWithLoading.map((term, index) => ({
-					...term,
-					isLoading: false,
-					data: results[index]
-				}));
+					const updatedTerms = termsWithLoading.map((term, index) => ({
+						...term,
+						isLoading: false,
+						data: results[index]
+					}));
 
-				set(addCompareTerm(updatedTerms));
+					set(addCompareTerm(updatedTerms));
+				} catch (error) {
+					console.error('Error fetching institution data:', error);
+					loadingStore.setError('Failed to fetch institution data');
+				}
 			} catch (error) {
 				console.error('Error initializing terms:', error);
 				set([createInitialTerm()]);

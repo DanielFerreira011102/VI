@@ -4,7 +4,8 @@
 		LineChartDataPoint,
 		BarChartDataPoint,
 		StarChartDataPoint,
-		YAxisConfig
+		YAxisConfig,
+		AxisConfig
 	} from '$lib/types/chart';
 
 	import LineChart from '$lib/components/LineChart.svelte';
@@ -67,6 +68,8 @@
 				padding: 15,
 				filter: (value: any, index: number) => index > 0,
 				format: (value: number) => {
+					if (value >= 1000000000000) return `${(value / 1000000000000).toFixed(1)}T`;
+					if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
 					if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
 					if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
 					return value.toString();
@@ -156,9 +159,9 @@
 				fillOpacity: 0.1
 			},
 			margins: {
-				top: 60,
+				top: 50,
 				right: 40,
-				bottom: 60,
+				bottom: 50,
 				left: 40
 			}
 		},
@@ -181,9 +184,11 @@
 				padding: 15,
 				filter: (value: any, index: number) => index > 0,
 				format: (value: number) => {
-					if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-					if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-					return `$${value}`;
+					if (value >= 1000000000000) return `${(value / 1000000000000).toFixed(1)}T`;
+					if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+					if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+					if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+					return value.toString();
 				},
 				gridLines: true,
 				gridLineColor: '#e0e0e0',
@@ -219,6 +224,7 @@
 		apc: {
 			data: BarChartDataPoint[];
 			yAxis: YAxisConfig;
+			xAxis: AxisConfig;
 		};
 		series: {
 			values: string[];
@@ -241,7 +247,11 @@
 		},
 		apc: {
 			data: [],
-			yAxis: { ...chartConfigs.line.yAxis, filter: (_, index) => index > 0 }
+			yAxis: { ...chartConfigs.line.yAxis, filter: (_, index) => index > 0 },
+			xAxis: {
+				...chartConfigs.apc.xAxis,
+				rotation: 0
+			}
 		},
 		series: {
 			values: [],
@@ -254,7 +264,6 @@
 		yearly: (terms: Term[], metric: MetricType): LineChartDataPoint[] => {
 			const yearSet = new Set<number>();
 			terms.forEach((term) => {
-				console.log('TD', term.data);
 				term.data?.counts_by_year?.forEach((count: any) => yearSet.add(count.year));
 			});
 
@@ -374,7 +383,11 @@
 				},
 				apc: {
 					data: [],
-					yAxis: { ...chartConfigs.line.yAxis, filter: (_, index) => index > 0 }
+					yAxis: { ...chartConfigs.line.yAxis, filter: (_, index) => index > 0 },
+					xAxis: {
+						...chartConfigs.apc.xAxis,
+						rotation: 0
+					}
 				},
 				series: {
 					values: [],
@@ -398,7 +411,8 @@
 			1
 		);
 
-		const max = Math.ceil(maxValue / 100) * 100;
+		const maxOrder = Math.floor(Math.log10(maxValue)) - 1;
+		const max = Math.ceil(maxValue / 10 ** maxOrder) * 10 ** maxOrder;
 		const interval = Math.ceil(max / 4);
 		const yAxisConfig = {
 			...chartConfigs.line.yAxis,
@@ -411,8 +425,13 @@
 			...apcData.flatMap((point) => [point.apc_list_sum_usd, point.apc_paid_sum_usd]),
 			1
 		);
-		const apcMax = Math.ceil(maxApcValue / 1000) * 1000;
+
+		const apcMaxOrder = Math.floor(Math.log10(maxApcValue)) - 1;
+		const apcMax = Math.ceil(maxApcValue / 10 ** apcMaxOrder) * 10 ** apcMaxOrder;
 		const apcInterval = Math.ceil(apcMax / 4);
+
+		// If we have 4 or more terms, apc x-axis labels should be rotated
+		const apcXAxisRotation = selectedTerms.length >= 4 ? -25 : 0;
 
 		// Update chart state
 		chartState = {
@@ -433,6 +452,10 @@
 					...chartConfigs.apc.yAxis,
 					max: apcMax,
 					interval: apcInterval
+				},
+				xAxis: {
+					...chartConfigs.apc.xAxis,
+					rotation: apcXAxisRotation
 				}
 			},
 			series: {
@@ -499,62 +522,55 @@
 	</div>
 </div>
 <div class="container mx-auto grid grid-cols-12 items-center justify-between gap-8 p-4">
-	<div class="w-full col-span-6 rounded-2xl bg-white p-4">
-		<div class="flex items-center justify-between p-4">
-			<div class="flex items-center space-x-4">
-				<h1 class="text-2xl leading-6 text-gray-900">
-					{getMetricLabel(selectedMetric)} Over Time
-				</h1>
-				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
-				</button>
-			</div>
-			<Select
-				options={[
-					{ value: 'works', label: 'Works' },
-					{ value: 'citations', label: 'Citations' },
-					{ value: 'avgCitations', label: 'Average Citations' }
-				]}
-				autoFocusDropdown={true}
-				onChange={(option) => (selectedMetric = option.value as MetricType)}
-				buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
-				dropdownClassName="min-w-48"
-				dropdownPadding="1rem"
-				dropdownOptionHeight="3.5rem"
-				dropdownTop="-1rem"
-			/>
+	<div class="col-span-full w-full rounded-2xl bg-white p-4 md:col-span-6">
+		<div class="flex items-center space-x-4 p-4">
+			<h1 class="text-2xl leading-6 text-gray-900">Aritcle Processing Charges</h1>
+			<button class="h-8 w-8 text-gray-500">
+				<MdHelpOutline />
+			</button>
 		</div>
 		<div class="w-full px-4 pb-8 pt-12">
-			<BarChart
-			data={chartState.apc.data}
-			series={['apc_list_sum_usd', 'apc_paid_sum_usd']}
-			colors={selectedTerms.flatMap((term, i) => [
-				term.color, // List price color (full opacity)
-				term.color + '80' // Paid amount color (50% opacity)
-			])}
-			xAxisLabel="category"
-			xAxisConfig={chartConfigs.apc.xAxis}
-			yAxisConfig={chartState.apc.yAxis}
-			popupTemplate={templates.apc}
-			seriesConfig={chartConfigs.apc.series}
-			margins={{
-				top: 20,
-				right: 20,
-				bottom: 60,
-				left: 60
-			}}
-		/>
+			<div class="h-112 w-full">
+				<BarChart
+					data={chartState.apc.data}
+					series={['apc_list_sum_usd', 'apc_paid_sum_usd']}
+					colors={selectedTerms.flatMap((term, i) => [
+						term.color, // List price color (full opacity)
+						term.color + '80' // Paid amount color (50% opacity)
+					])}
+					xAxisLabel="category"
+					xAxisConfig={chartState.apc.xAxis}
+					yAxisConfig={chartState.apc.yAxis}
+					popupTemplate={templates.apc}
+					seriesConfig={chartConfigs.apc.series}
+					margins={{
+						bottom: 100,
+						right: 20,
+						left: 80
+					}}
+				/>
+			</div>
+		</div>
 	</div>
-	</div>
-	<div class="col-span-6 h-[520px] w-full rounded-2xl bg-white p-4">
-		<StarChart
-			data={chartState.stats.data}
-			axes={chartConfigs.star.axes}
-			gridConfig={chartConfigs.star.grid}
-			axisConfig={chartConfigs.star.axis}
-			seriesConfig={chartConfigs.star.series}
-			margins={chartConfigs.star.margins}
-		/>
+	<div class="col-span-full w-full rounded-2xl bg-white p-4 md:col-span-6">
+		<div class="flex items-center space-x-4 p-4">
+			<h1 class="text-2xl leading-6 text-gray-900">Summary Statistics</h1>
+			<button class="h-8 w-8 text-gray-500">
+				<MdHelpOutline />
+			</button>
+		</div>
+		<div class="w-full px-4 pb-8 pt-12">
+			<div class="h-112 w-full">
+				<StarChart
+					data={chartState.stats.data}
+					axes={chartConfigs.star.axes}
+					gridConfig={chartConfigs.star.grid}
+					axisConfig={chartConfigs.star.axis}
+					seriesConfig={chartConfigs.star.series}
+					margins={chartConfigs.star.margins}
+				/>
+			</div>
+		</div>
 	</div>
 </div>
 <div class="container mx-auto flex items-center justify-between p-4">

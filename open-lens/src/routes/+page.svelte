@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BarChart from '$lib/components/BarChart.svelte';
+	import PieChart from '$lib/components/PieChart.svelte';
 
 	const data = [
 		{
@@ -23,7 +24,7 @@
 	];
 
 	const series = ['size', 'weight', 'age'];
-	const colors = ['#4CAF50', '#2196F3', '#FFC107'];
+	const colors = ['#4CAF50', '#2196F3', '#FFC107', '#FF5722'];
 
 	const popupTemplate = (item: any, series: string) => `
 	  <div class="bg-white shadow-lg rounded p-2">
@@ -73,5 +74,25 @@
 		{xAxisConfig}
 		{yAxisConfig}
 		{popupTemplate}
+	/>
+</div>
+<div class="h-[400px] w-full">
+	<PieChart
+		data={[
+			{ label: 'A', value: 30 },
+			{ label: 'B', value: 45 },
+			{ label: 'C', value: 25 }
+		]}
+		colors={['#ff6b6b', '#4ecdc4', '#45b7d1']}
+		seriesConfig={{
+			innerRadius: 0.6,
+			padAngle: 0.02,
+			cornerRadius: 0,
+			showHoverEffects: true,
+			hoverStyle: {
+				borderWidth: 2,
+				borderOpacity: 0.15
+			}
+		}}
 	/>
 </div>

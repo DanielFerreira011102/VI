@@ -3,10 +3,6 @@
 	import type { Topic } from '$lib/types/topic';
 
 	let { selectedTerms, selectedTopic } = $props<{ selectedTerms: Term[]; selectedTopic: Topic }>();
-
-	$effect(() => {
-		console.log('Selected topic:', selectedTopic);
-	});
 </script>
 
 <div class="container mx-auto flex items-center justify-between p-4">

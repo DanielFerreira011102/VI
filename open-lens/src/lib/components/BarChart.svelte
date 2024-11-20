@@ -179,6 +179,11 @@
 			.attr('dominant-baseline', 'middle')
 			.attr('font-size', yAxisConfig.fontSize)
 			.attr('fill', yAxisConfig.color)
+			.attr('transform', (d) => {
+				const x = margin.left - yAxisConfig.padding;
+				const y = yScale(d);
+				return `rotate(${-yAxisConfig.rotation}, ${x}, ${y})`;
+			})
 			.text(yAxisConfig.format);
 
 		if (yAxisConfig.showAxis) {
@@ -212,9 +217,14 @@
 			.attr('class', 'x-axis-label')
 			.attr('x', (_, i) => categoryStartX(i) + totalBarWidth / 2)
 			.attr('y', actualHeight - margin.bottom + xAxisConfig.padding)
-			.attr('text-anchor', 'middle')
+			.attr('text-anchor', xAxisConfig.rotation ? 'end' : 'middle') // Adjust text-anchor based on rotation
 			.attr('font-size', xAxisConfig.fontSize)
 			.attr('fill', xAxisConfig.color)
+			.attr('transform', (_, i) => {
+				const x = categoryStartX(i) + totalBarWidth / 2;
+				const y = actualHeight - margin.bottom + xAxisConfig.padding;
+				return `rotate(${xAxisConfig.rotation}, ${x}, ${y})`;
+			})
 			.text((d) => xAxisConfig.format(d));
 	}
 

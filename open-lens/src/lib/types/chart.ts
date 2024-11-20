@@ -188,6 +188,55 @@ type StarChartProps = {
 	seriesConfig?: StarChartSeriesConfig;
 };
 
+// Pie Chart Types
+type PieChartDataPoint = {
+	label: string;
+	value: number;
+	[key: string]: any;
+};
+
+type PieChartPointerState = {
+	x: number;
+	y: number;
+	show: boolean;
+	data: PieChartDataPoint | null;
+	index: number;
+};
+
+type PieChartSeriesConfig = {
+	/** Inner radius ratio (0-1), 0 for pie, >0 for donut */
+	innerRadius?: number;
+	/** Padding between sectors in degrees */
+	padAngle?: number;
+	/** Corner radius for sectors */
+	cornerRadius?: number;
+	/** Whether to show hover effects */
+	showHoverEffects?: boolean;
+	/** Style for hover effects */
+	hoverStyle?: {
+		borderWidth?: number;
+		borderOpacity?: number;
+	};
+};
+
+type PieChartProps = {
+	/** The data to be displayed */
+	data?: PieChartDataPoint[];
+	/** Colors for each slice */
+	colors?: string[];
+	/** Function to generate popup content */
+	popupTemplate?: (item: PieChartDataPoint, index: number) => string;
+	/** Chart margins */
+	margins?: {
+		top?: number;
+		right?: number;
+		bottom?: number;
+		left?: number;
+	};
+	/** Series appearance configuration */
+	seriesConfig?: PieChartSeriesConfig;
+};
+
 export type {
 	Margin,
 	BaseAxisConfig as AxisConfig,
@@ -210,5 +259,10 @@ export type {
 	StarChartGridConfig,
 	StarChartAxisConfig,
 	StarChartSeriesConfig,
-	StarChartProps
+	StarChartProps,
+	// Pie Chart exports
+	PieChartDataPoint,
+	PieChartPointerState,
+	PieChartSeriesConfig,
+	PieChartProps
 };

@@ -134,6 +134,40 @@
 		}
 	});
 
+	// Helper function to calculate appropriate y-axis bounds
+	function calculateYAxisBounds(
+		data: LineChartDataPoint[],
+		series: string[],
+		configMin: number,
+		configMax: number,
+		autoScale: boolean = false
+	): [number, number] {
+		if (!autoScale) {
+			return [configMin, configMax];
+		}
+
+		let minValue = configMin;
+		let maxValue = configMax;
+
+		if (data?.length && series?.length) {
+			const allValues = data.flatMap((item) =>
+				series.map((s) => item[s]).filter((val): val is number => typeof val === 'number')
+			);
+
+			if (allValues.length > 0) {
+				minValue = Math.min(...allValues);
+				maxValue = Math.max(...allValues);
+
+				// Add some padding to the bounds
+				const range = maxValue - minValue;
+				minValue = Math.floor(minValue - range * 0.1);
+				maxValue = Math.ceil(maxValue + range * 0.1);
+			}
+		}
+
+		return [minValue, maxValue];
+	}
+
 	function renderAxisAndGrid(svg: d3.Selection<SVGSVGElement, unknown, null, undefined>) {
 		const yTicks = d3.range(
 			yAxisConfig.min,
@@ -167,6 +201,11 @@
 			.attr('dominant-baseline', 'middle')
 			.attr('font-size', yAxisConfig.fontSize)
 			.attr('fill', yAxisConfig.color)
+			.attr('transform', (d) => {
+				const x = margin.left - yAxisConfig.padding;
+				const y = yScale(d);
+				return `rotate(${-yAxisConfig.rotation}, ${x}, ${y})`;
+			})
 			.text(yAxisConfig.format);
 
 		if (yAxisConfig.showAxis) {
