@@ -1,52 +1,43 @@
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params }) => {
-	if (!params.id) {
-		return null;
-	}
+    if (!params.id) return null;
 
-	const institutionData = {
-		info: {}, // Done
-		yearlyWorkOutput: {}, // Done
-		topicsPerWorkType: {},
-		openAccessDivision: {}, // Done
-		mostDiscussedTopics: {}, // Done
-		mostRecentWorks: {}
-	};
+    const institutionData = {
+        info: {},
+        yearlyWorkOutput: {},
+        topicsPerWorkType: {},
+        openAccessDivision: {},
+        mostDiscussedTopics: {},
+        mostRecentWorks: {}
+    };
 
-	try {
-		// Info
-		let apiUrl = `https://api.openalex.org/institutions/${params.id}`;
-		const infoResponse = await fetch(apiUrl);
-		if (!infoResponse.ok) {
-			throw new Error(`API request failed for ${params.id}: ${infoResponse.status}`);
-		}
-		institutionData.info = await infoResponse.json();
-		institutionData.yearlyWorkOutput = institutionData.info.counts_by_year.sort(
-			(a, b) => a.year - b.year
-		);
-		institutionData.mostDiscussedTopics = institutionData.info.topics;
+    try {
+        // Parallel API calls using Promise.all
+        const [infoResponse, openAccessResponse, mostRecentWorksResponse] = await Promise.all([
+            fetch(`https://api.openalex.org/institutions/${params.id}`),
+            fetch(`https://api.openalex.org/works?group_by=open_access.is_oa&per_page=200&filter=authorships.institutions.lineage:${params.id}`),
+            fetch(`https://api.openalex.org/works?page=1&filter=authorships.institutions.lineage:${params.id}&sort=publication_year:desc`)
+        ]);
 
-		// Open access division
-		apiUrl = `https://api.openalex.org/works?group_by=open_access.is_oa&per_page=200&filter=authorships.institutions.lineage:${params.id}`;
-		const openAccessResponse = await fetch(apiUrl);
-		if (!openAccessResponse.ok) {
-			throw new Error(`API request failed for ${params.id}: ${openAccessResponse.status}`);
-		}
-		institutionData.openAccessDivision = await openAccessResponse.json();
+        // Parallel JSON parsing
+        const [info, openAccess, mostRecentWorks] = await Promise.all([
+            infoResponse.ok ? infoResponse.json() : Promise.reject(`Info API failed: ${infoResponse.status}`),
+            openAccessResponse.ok ? openAccessResponse.json() : Promise.reject(`OpenAccess API failed: ${openAccessResponse.status}`),
+            mostRecentWorksResponse.ok ? mostRecentWorksResponse.json() : Promise.reject(`Recent works API failed: ${mostRecentWorksResponse.status}`)
+        ]);
 
-		// Most recent works
-		apiUrl = `https://api.openalex.org/works?page=1&filter=authorships.institutions.lineage:${params.id}&sort=publication_year:desc`;
-		const mostRecentWorksResponse = await fetch(apiUrl);
-		if (!mostRecentWorksResponse.ok) {
-			throw new Error(`API request failed for ${params.id}: ${mostRecentWorksResponse.status}`);
-		}
-		institutionData.mostRecentWorks = await mostRecentWorksResponse.json();
+        // Assign results and process yearlyWorkOutput
+        institutionData.info = info;
+        institutionData.yearlyWorkOutput = info.counts_by_year.sort((a, b) => a.year - b.year);
+        institutionData.mostDiscussedTopics = info.topics;
+        institutionData.openAccessDivision = openAccess;
+        institutionData.mostRecentWorks = mostRecentWorks;
 
-		return institutionData;
-	} catch (error) {
-		console.error(`Error fetching data for institution ${params.id}:`, error);
-		// You might want to throw the error here to trigger SvelteKit's error handling
-		throw error;
-	}
+        return institutionData;
+
+    } catch (error) {
+        console.error(`Error fetching data for institution ${params.id}:`, error);
+        throw error;
+    }
 };

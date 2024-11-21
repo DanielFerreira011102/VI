@@ -140,10 +140,10 @@ export const fetchInstitutionData = async (
 			}
 
 			console.log(`Fetched data for ${term}`);
-			console.log(institution)
+			console.log(institution);
 
 			const topicData = await topicResponse.json();
-			
+
 			const result: Institution = {
 				...institution,
 				works: {

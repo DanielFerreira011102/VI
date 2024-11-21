@@ -18,7 +18,7 @@ export interface Institution {
 		count: number;
 		display_name: string;
 		id: string;
-	}
+	};
 	works?: {
 		apc_list_sum_usd: number;
 		apc_paid_sum_usd: number;
@@ -28,19 +28,19 @@ export interface Institution {
 }
 
 export interface InstitutionsResponse {
-    meta: {
-        count: number;
-        page: number;
-        per_page: number;
-    };
-    results: Institution[];
+	meta: {
+		count: number;
+		page: number;
+		per_page: number;
+	};
+	results: Institution[];
 }
 
-export type SortField = 
-    | 'works_count'
-    | 'cited_by_count'
-    | 'summary_stats.h_index'
-    | 'summary_stats.i10_index'
-    | 'summary_stats.2yr_mean_citedness';
+export type SortField =
+	| 'works_count'
+	| 'cited_by_count'
+	| 'summary_stats.h_index'
+	| 'summary_stats.i10_index'
+	| 'summary_stats.2yr_mean_citedness';
 
 export type SortDirection = 'asc' | 'desc';
