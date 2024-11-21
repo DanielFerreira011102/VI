@@ -328,7 +328,7 @@
 					dropdownClassName="min-w-48"
 					dropdownPadding="1rem"
 					dropdownOptionHeight="3.5rem"
-					dropdownTop="-1rem"
+					dropdownTop="-0.5rem"
 				/>
 			</div>
 			<button class="h-8 w-8 text-gray-500">

@@ -61,7 +61,7 @@
 				dropdownWidth="32rem"
 				dropdownPadding="1rem"
 				dropdownOptionHeight="3.5rem"
-				dropdownTop="-1rem"
+				dropdownTop="-0.5rem"
 			/>
 		</div>
 	</div>

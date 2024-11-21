@@ -489,7 +489,7 @@
 				dropdownClassName="min-w-48"
 				dropdownPadding="1rem"
 				dropdownOptionHeight="3.5rem"
-				dropdownTop="-1rem"
+				dropdownTop="-0.5rem"
 			/>
 		</div>
 		<div class="grid w-full grid-cols-12 px-4 pb-8 pt-12">
@@ -596,7 +596,7 @@
 				dropdownClassName="min-w-48"
 				dropdownPadding="1rem"
 				dropdownOptionHeight="3.5rem"
-				dropdownTop="-1rem"
+				dropdownTop="-0.5rem"
 			/>
 		</div>
 		<div class="w-full px-4 pb-8 pt-12">
