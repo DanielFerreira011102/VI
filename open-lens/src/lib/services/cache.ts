@@ -98,18 +98,3 @@ export class CacheService<T = any> {
 		};
 	}
 }
-
-// Create and export cache instances
-export const institutionCache = new CacheService<Institution>({
-	duration: 5 * 60 * 1000, // 5 minutes
-	maxSize: 100 // Adjust based on your needs
-});
-
-// Optional: Create a generic HTTP cache factory
-export function createHttpCache<T>(options?: Partial<CacheOptions>) {
-	return new CacheService<T>({
-		duration: 5 * 60 * 1000,
-		maxSize: 100,
-		...options
-	});
-}

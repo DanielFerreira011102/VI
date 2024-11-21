@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ripple } from '$lib/actions/ripple';
-	import { clickOutside } from '$lib/actions/outside';
+	import { clickOutside } from '$lib/actions/clickOutside';
 	import { scale } from 'svelte/transition';
 	import type { Option } from '$lib/types/option';
 	import type { AutocompleteConfig } from '$lib/types/autocomplete';
