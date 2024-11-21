@@ -58,9 +58,9 @@
             type: 'number',
             operators: [
                 { value: ':', label: 'equals' },
-                { value: 'lt', label: 'less than (exclusive)' },
-                { value: 'gt', label: 'greater than (exclusive)' },
-                { value: '-', label: 'between (inclusive)' }
+                { value: 'lt', label: 'less than' },
+                { value: 'gt', label: 'greater than' },
+                { value: '-', label: 'between' }
             ]
         },
         is_global_south: {
@@ -168,12 +168,12 @@
                     // Handle exclusive less than
                     const value = parseInt(f.value);
                     // Subtract 1 to make it exclusive
-                    return `${f.field}:-${value - 1}`;
+                    return `${f.field}:<${value}`;
                 } else if (f.operator === 'gt') {
                     // Handle exclusive greater than
                     const value = parseInt(f.value);
                     // Add 1 to make it exclusive
-                    return `${f.field}:${value + 1}-`;
+                    return `${f.field}:>${value}`;
                 }
                 return `${f.field}${f.operator}${f.value}`;
             });
