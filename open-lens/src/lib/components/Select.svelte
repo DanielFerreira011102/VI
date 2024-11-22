@@ -8,6 +8,8 @@
 	let {
 		options = [],
 		defaultOption,
+		defaultSelected = [],
+		isMulti = false,
 		autocomplete,
 		onChange,
 		// Button styling
@@ -28,17 +30,21 @@
 		dropdownRight = '',
 		dropdownBottom = '',
 		// Optional class names
+		wrapperClassName = '', 
 		buttonClassName = '',
 		dropdownClassName = '',
 		optionClassName = '',
 		// Optional props
 		enableKeyboardHighlight = true,
-		autoFocusDropdown = false
+		autoFocusDropdown = false,
+		placeholder = 'Select...'
 	} = $props<{
 		options?: Option[];
 		defaultOption?: Option;
+		defaultSelected?: Option[];
+		isMulti?: boolean;
 		autocomplete?: AutocompleteConfig;
-		onChange: (option: Option) => void;
+		onChange: (value: Option | Option[]) => void;
 		buttonMinWidth?: string;
 		buttonHeight?: string;
 		buttonPadding?: string;
@@ -53,16 +59,19 @@
 		dropdownTop?: string;
 		dropdownRight?: string;
 		dropdownBottom?: string;
+		wrapperClassName?: string;
 		buttonClassName?: string;
 		dropdownClassName?: string;
 		optionClassName?: string;
 		enableKeyboardHighlight?: boolean;
 		autoFocusDropdown?: boolean;
+		placeholder?: string;
 	}>();
 
 	let selectedOption = $state<Option>(
-		defaultOption ?? options[0] ?? { value: '', label: 'Select...' }
+		defaultOption ?? options[0] ?? { value: '', label: placeholder }
 	);
+	let selectedOptions = $state<Option[]>(defaultSelected ?? []);
 	let isOpen = $state(false);
 	let buttonEl = $state<HTMLButtonElement | null>(null);
 	let searchValue = $state('');
@@ -72,6 +81,20 @@
 	const debouncedFetch = autocomplete?.enabled
 		? debounce(fetchSuggestions, autocomplete.debounceMs || 300)
 		: null;
+
+	function buildStyleString() {
+		const styles = [];
+		
+		if (buttonMinWidth) styles.push(`min-width: ${buttonMinWidth}`);
+		if (buttonHeight) styles.push(`height: ${buttonHeight}`);
+		if (buttonPadding) {
+			styles.push(`padding-left: ${buttonPadding}`);
+			styles.push(`padding-right: ${buttonPadding}`);
+		}
+		if (buttonBorderRadius) styles.push(`border-radius: ${buttonBorderRadius}`);
+		
+		return styles.join(';');
+	}
 
 	function filterPredefinedOptions(query: string): Option[] {
 		if (!query) return options;
@@ -98,12 +121,8 @@
 		try {
 			const results = await autocomplete.fetchSuggestions(query);
 			const apiSuggestions = results.map((result: any) => autocomplete.processResult(result));
-
-			// Combine and deduplicate API results with filtered predefined options
 			const filteredPredefined = filterPredefinedOptions(query);
 			const combined = [...filteredPredefined, ...apiSuggestions];
-
-			// Remove duplicates based on value
 			suggestions = Array.from(new Map(combined.map((item) => [item.value, item])).values());
 		} catch (error) {
 			console.error('Error fetching suggestions:', error);
@@ -113,10 +132,20 @@
 		}
 	}
 
-	function selectOption(option: Option) {
-		selectedOption = option;
-		onChange(option);
-		handleClose();
+	function handleSelect(option: Option) {
+		if (isMulti) {
+			const isSelected = selectedOptions.some((selected) => selected.value === option.value);
+			if (isSelected) {
+				selectedOptions = selectedOptions.filter((selected) => selected.value !== option.value);
+			} else {
+				selectedOptions = [...selectedOptions, option];
+			}
+			onChange(selectedOptions);
+		} else {
+			selectedOption = option;
+			onChange(option);
+			handleClose();
+		}
 	}
 
 	function handleClose() {
@@ -136,6 +165,14 @@
 		}
 	}
 
+	function getDisplayText() {
+		if (isMulti) {
+			if (selectedOptions.length === 0) return placeholder;
+			return selectedOptions.map((option) => option.label).join(', ');
+		}
+		return selectedOption.label;
+	}
+
 	// Add effect to fetch initial suggestions when dropdown opens
 	$effect(() => {
 		if (isOpen && autocomplete?.enabled && autocomplete.minChars === 0) {
@@ -145,12 +182,17 @@
 		}
 	});
 
+	// Update selected option/options when default values change
 	$effect(() => {
-		selectedOption = defaultOption ?? options[0] ?? { value: '', label: 'Select...' };
+		if (isMulti) {
+			selectedOptions = defaultSelected ?? [];
+		} else {
+			selectedOption = defaultOption ?? options[0] ?? { value: '', label: placeholder };
+		}
 	});
 </script>
 
-<div class="relative inline-block">
+<div class="relative inline-block {wrapperClassName}">
 	<button
 		bind:this={buttonEl}
 		onclick={() => (isOpen = !isOpen)}
@@ -160,20 +202,14 @@
 				isOpen = true;
 			}
 		}}
-		class="relative flex items-center justify-between border border-neutral-200 bg-white text-gray-900 outline-none {buttonClassName}"
-		style="
-			min-width: {buttonMinWidth};
-			height: {buttonHeight};
-			padding-left: {buttonPadding};
-			padding-right: {buttonPadding};
-			border-radius: {buttonBorderRadius};
-		"
+		class="relative flex w-full items-center justify-between border border-neutral-200 bg-white text-gray-900 outline-none {buttonClassName}"
+		style={buildStyleString()}
 		aria-haspopup="listbox"
 		aria-expanded={isOpen}
 	>
-		<span class="truncate whitespace-nowrap">{selectedOption.label}</span>
+		<span class="truncate whitespace-nowrap">{getDisplayText()}</span>
 		<span
-			class="ml-2 flex h-6 w-6 items-center justify-center transition-transform duration-200"
+			class="ml-2 flex h-6 w-6 flex-shrink-0 items-center justify-center transition-transform duration-200"
 			style:transform={isOpen ? 'rotate(180deg)' : 'rotate(0deg)'}
 		>
 			<MdArrowDropDown />
@@ -182,6 +218,7 @@
 
 	<Dropdown
 		{isOpen}
+		{isMulti}
 		{enableKeyboardHighlight}
 		autoFocus={autoFocusDropdown}
 		{autocomplete}
@@ -199,8 +236,9 @@
 		className={dropdownClassName}
 		{optionClassName}
 		options={suggestions}
-		{selectedOption}
-		onSelect={selectOption}
+		selectedOption={isMulti ? null : selectedOption}
+		selectedOptions={isMulti ? selectedOptions : []}
+		onSelect={handleSelect}
 		onClose={handleClose}
 		{searchValue}
 		onSearchInput={handleSearchInput}

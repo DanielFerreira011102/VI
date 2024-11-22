@@ -7,12 +7,14 @@
 		SortDirection
 	} from '$lib/types/institution';
 	import type { Option } from '$lib/types/option';
+	import type { FilterConfig } from '$lib/components/FilterBuilder.svelte';
 	import Select from '$lib/components/Select.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import LoadingStates from '$lib/components/LoadingStates.svelte';
 	import MdSearch from 'svelte-icons/md/MdSearch.svelte';
 	import InstitutionCard from '$lib/components/InstitutionCard.svelte';
 	import FilterBuilder from '$lib/components/FilterBuilder.svelte';
+	import Pagination from '$lib/components/Pagination.svelte';
 
 	let institutions = $state<Institution[]>([]);
 	let totalCount = $state(0);
@@ -24,7 +26,6 @@
 	let filters = $state<string[]>([]);
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
-	let pageInput = $state('');
 
 	const sortOptions: Option[] = [
 		{ value: 'works_count', label: 'Works Count' },
@@ -39,19 +40,101 @@
 		{ value: 'asc', label: 'Ascending' }
 	];
 
-	const commonStyles = {
-		minWidth: '12rem',
-		height: '3rem',
-		padding: '1rem',
-		borderRadius: '0.5rem'
-	};
-
-	const selectStyles = {
-		buttonClassName: 'min-w-48 h-12 p-4 rounded-lg leading-6',
-		dropdownClassName: 'min-w-48',
-		dropdownPadding: '1rem',
-		dropdownOptionHeight: '3.5rem',
-		dropdownTop: '-0.5rem'
+	const filterConfig: FilterConfig = {
+		country_code: {
+			type: 'select',
+			label: 'Country',
+			operators: [
+				{ value: ':', label: 'is' },
+				{ value: '!:', label: 'is not' }
+			],
+			options: [
+				{ value: 'us', label: 'United States' },
+				{ value: 'gb', label: 'United Kingdom' },
+				{ value: 'de', label: 'Germany' },
+				{ value: 'cn', label: 'China' },
+				{ value: 'jp', label: 'Japan' },
+				{ value: 'fr', label: 'France' },
+				{ value: 'ca', label: 'Canada' },
+				{ value: 'in', label: 'India' },
+				{ value: 'br', label: 'Brazil' },
+				{ value: 'ru', label: 'Russia' },
+				{ value: 'au', label: 'Australia' },
+				{ value: 'it', label: 'Italy' },
+				{ value: 'es', label: 'Spain' },
+				{ value: 'mx', label: 'Mexico' },
+				{ value: 'kr', label: 'South Korea' },
+				{ value: 'za', label: 'South Africa' },
+				{ value: 'ar', label: 'Argentina' },
+				{ value: 'cl', label: 'Chile' },
+				{ value: 'eg', label: 'Egypt' },
+				{ value: 'ng', label: 'Nigeria' },
+				{ value: 'sa', label: 'Saudi Arabia' },
+				{ value: 'se', label: 'Sweden' },
+				{ value: 'ch', label: 'Switzerland' },
+				{ value: 'tr', label: 'Turkey' },
+				{ value: 'nl', label: 'Netherlands' },
+				{ value: 'pt', label: 'Portugal' },
+				{ value: 'be', label: 'Belgium' },
+				{ value: 'dk', label: 'Denmark' },
+				{ value: 'fi', label: 'Finland' },
+				{ value: 'ie', label: 'Ireland' },
+				{ value: 'no', label: 'Norway' },
+				{ value: 'nz', label: 'New Zealand' },
+				{ value: 'pl', label: 'Poland' },
+				{ value: 'sg', label: 'Singapore' },
+				{ value: 'at', label: 'Austria' },
+				{ value: 'gr', label: 'Greece' },
+				{ value: 'il', label: 'Israel' },
+				{ value: 'ua', label: 'Ukraine' },
+				{ value: 'vn', label: 'Vietnam' },
+				{ value: 'th', label: 'Thailand' }
+			],
+			allowMultiple: true
+		},
+		type: {
+			type: 'select',
+			operators: [
+				{ value: ':', label: 'is' },
+				{ value: '!:', label: 'is not' }
+			],
+			options: [
+				{ value: 'education', label: 'Education' },
+				{ value: 'healthcare', label: 'Healthcare' },
+				{ value: 'company', label: 'Company' },
+				{ value: 'nonprofit', label: 'Non-profit' },
+				{ value: 'government', label: 'Government' },
+				{ value: 'facility', label: 'Facility' },
+				{ value: 'archive', label: 'Archive' }
+			],
+			allowMultiple: true
+		},
+		works_count: {
+			type: 'number',
+			operators: [
+				{ value: ':', label: 'equals' },
+				{ value: 'lt', label: 'less than' },
+				{ value: 'gt', label: 'greater than' },
+				{ value: '-', label: 'between' }
+			]
+		},
+		cited_by_count: {
+			type: 'number',
+			operators: [
+				{ value: ':', label: 'equals' },
+				{ value: 'lt', label: 'less than' },
+				{ value: 'gt', label: 'greater than' },
+				{ value: '-', label: 'between' }
+			]
+		},
+		is_global_south: {
+			type: 'boolean',
+			operators: [{ value: ':', label: 'is' }],
+			options: [
+				{ value: 'true', label: 'Yes' },
+				{ value: 'false', label: 'No' }
+			]
+		}
 	};
 
 	async function fetchInstitutions() {
@@ -118,100 +201,81 @@
 	function handlePageChange(newPage: number) {
 		if (newPage < 1 || newPage > Math.ceil(totalCount / perPage)) return;
 		currentPage = newPage;
-		pageInput = String(newPage);
 		fetchInstitutions();
-	}
-
-	function handlePageInput(value: string) {
-		pageInput = value;
-	}
-
-	function handlePageKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter') {
-			const newPage = parseInt(pageInput);
-			if (!isNaN(newPage)) {
-				handlePageChange(newPage);
-			}
-		}
 	}
 
 	onMount(fetchInstitutions);
 </script>
 
-<div class="container mx-auto px-4 py-8">
+<!-- Main container with responsive padding -->
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 	<div class="mb-8 space-y-4">
 		<!-- Search and Sort Controls -->
-		<div class="flex flex-wrap gap-4">
-			<div class="relative flex-1">
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-12">
+			<!-- Search input takes full width on mobile, 6 columns on desktop -->
+			<div class="sm:col-span-6">
 				<Input
 					value={searchQuery}
 					onInput={handleSearchInput}
 					onKeydown={handleSearch}
 					placeholder="Search institutions..."
 					Icon={MdSearch}
-					className="w-full"
-					{...commonStyles}
+					height="3rem"
+					padding="1rem"
+					borderRadius="0.5rem"
+					wrapperClassName="w-full"
+					inputClassName="text-base leading-6"
 				/>
 			</div>
-			<Select
-				options={sortOptions}
-				onChange={handleSort}
-				defaultOption={sortOptions[0]}
-				{...selectStyles}
-			/>
-			<Select
-				options={directionOptions}
-				onChange={handleDirectionChange}
-				defaultOption={directionOptions[0]}
-				{...selectStyles}
-			/>
+
+			<!-- Sort controls take full width on mobile, 6 columns on desktop -->
+			<div class="grid sm:col-span-6 sm:grid-cols-2 gap-4">
+				<Select
+					options={sortOptions}
+					onChange={handleSort}
+					defaultOption={sortOptions[0]}
+					buttonClassName="w-full h-12 p-4 rounded-lg leading-6"
+					dropdownClassName="w-full max-h-96"
+					dropdownPadding="1rem"
+					dropdownOptionHeight="3.5rem"
+					dropdownTop="-0.5rem"
+				/>
+				<Select
+					options={directionOptions}
+					onChange={handleDirectionChange}
+					defaultOption={directionOptions[0]}
+					buttonClassName="w-full h-12 p-4 rounded-lg leading-6"
+					dropdownClassName="w-full max-h-96"
+					dropdownPadding="1rem"
+					dropdownOptionHeight="3.5rem"
+					dropdownTop="-0.5rem"
+				/>
+			</div>
 		</div>
 
 		<!-- Filter Builder -->
-		<FilterBuilder onChange={handleFiltersChange} />
+		<FilterBuilder config={filterConfig} onChange={handleFiltersChange} />
 	</div>
 
 	<!-- Loading States -->
 	<LoadingStates loadingState={{ isLoading, error }} />
 
 	{#if !isLoading && !error}
-		<!-- Institution Cards Grid -->
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+		<!-- Responsive grid for institution cards -->
+		<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 			{#each institutions as institution (institution.id)}
 				<InstitutionCard {institution} />
 			{/each}
 		</div>
 
 		<!-- Pagination -->
-		<div class="mt-8 flex items-center justify-center gap-4">
-			<button
-				class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-				disabled={currentPage === 1}
-				onclick={() => handlePageChange(currentPage - 1)}
-			>
-				Previous
-			</button>
-
-			<div class="flex items-center gap-2">
-				<Input
-					value={pageInput}
-					onInput={handlePageInput}
-					onKeydown={handlePageKeydown}
-					className="w-16 text-center"
-					{...commonStyles}
-				/>
-				<span class="text-gray-600">
-					of {Math.ceil(totalCount / perPage)}
-				</span>
-			</div>
-
-			<button
-				class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-				disabled={currentPage === Math.ceil(totalCount / perPage)}
-				onclick={() => handlePageChange(currentPage + 1)}
-			>
-				Next
-			</button>
-		</div>
+		<Pagination
+			currentPage={currentPage}
+			totalPages={Math.ceil(totalCount / perPage)}
+			onPageChange={handlePageChange}
+			disabled={isLoading}
+			showFirstLast={true}
+			className="mt-8"
+		/>
 	{/if}
 </div>

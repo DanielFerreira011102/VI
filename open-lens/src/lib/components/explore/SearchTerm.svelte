@@ -195,7 +195,7 @@
 		padding="1.5rem"
 		optionHeight="3.5rem"
 		top="100%"
-		className="max-h-64"
+		className="max-h-72 overflow-y-auto"
 		autoFocus={false}
 		{isFetching}
 	/>

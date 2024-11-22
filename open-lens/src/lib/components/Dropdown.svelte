@@ -5,6 +5,8 @@
 	import type { Option } from '$lib/types/option';
 	import type { AutocompleteConfig } from '$lib/types/autocomplete';
 	import MdClose from 'svelte-icons/md/MdClose.svelte';
+	import MdCheckBox from 'svelte-icons/md/MdCheckBox.svelte';
+	import MdCheckBoxOutlineBlank from 'svelte-icons/md/MdCheckBoxOutlineBlank.svelte';
 
 	let {
 		isOpen = false,
@@ -22,7 +24,9 @@
 		className = '',
 		optionClassName = '',
 		options = [],
-		selectedOption,
+		selectedOption = null,
+		selectedOptions = [],
+		isMulti = false,
 		onSelect,
 		onClose,
 		enableKeyboardHighlight = true,
@@ -47,7 +51,9 @@
 		className?: string;
 		optionClassName?: string;
 		options: Option[];
-		selectedOption: Option;
+		selectedOption?: Option | null;
+		selectedOptions?: Option[];
+		isMulti?: boolean;
 		onSelect: (option: Option) => void;
 		onClose: () => void;
 		enableKeyboardHighlight?: boolean;
@@ -64,8 +70,45 @@
 	let optionElements = $state<HTMLButtonElement[]>([]);
 	let inputElement = $state<HTMLInputElement | null>(null);
 
+	function buildDropdownStyle() {
+		const styles = [];
+		
+		if (minWidth) styles.push(`min-width: ${minWidth}`);
+		if (width) styles.push(`width: ${width}`);
+		if (maxWidth) styles.push(`max-width: ${maxWidth}`);
+		if (borderRadius) styles.push(`border-radius: ${borderRadius}`);
+		if (left) styles.push(`left: ${left}`);
+		if (top) styles.push(`top: ${top}`);
+		if (right) styles.push(`right: ${right}`);
+		if (bottom) styles.push(`bottom: ${bottom}`);
+		
+		return styles.join(';');
+	}
+
+	function buildOptionStyle() {
+		const styles = [];
+		
+		if (optionHeight) styles.push(`height: ${optionHeight}`);
+		if (padding) {
+			styles.push(`padding-left: ${padding}`);
+			styles.push(`padding-right: ${padding}`);
+		}
+		
+		return styles.join(';');
+	}
+
+	function isOptionSelected(option: Option): boolean {
+		if (isMulti) {
+			return selectedOptions.some(selected => selected.value === option.value);
+		}
+		return selectedOption?.value === option.value;
+	}
+
 	function getCurrentIndex() {
-		return options.findIndex((opt: Option) => opt.value === selectedOption.value);
+		if (isMulti) {
+			return -1;
+		}
+		return options.findIndex((opt: Option) => opt.value === selectedOption?.value);
 	}
 
 	export function focusOption(index: number) {
@@ -122,6 +165,7 @@
 				}
 				break;
 			case 'Enter':
+			case ' ':
 				event.preventDefault();
 				if (highlightedIndex >= 0) {
 					onSelect(options[highlightedIndex]);
@@ -164,17 +208,9 @@
 		use:clickOutside={onClose}
 		transition:scale={{ duration: 200, start: 0.95 }}
 		class="absolute z-50 flex flex-col border border-neutral-200 bg-white shadow-md outline-none {className}"
-		style="
-			min-width: {minWidth};
-			width: {width};
-			max-width: {maxWidth};
-			border-radius: {borderRadius};
-			{left && `left: ${left};`}
-			{top && `top: ${top};`}
-			{right && `right: ${right};`}
-			{bottom && `bottom: ${bottom};`}
-		"
+		style={buildDropdownStyle()}
 		role="listbox"
+		aria-multiselectable={isMulti}
 		tabindex="0"
 		onkeydown={handleKeydown}
 	>
@@ -204,8 +240,7 @@
 
 		<div
 			bind:this={optionsContainer}
-			class="flex-1 overflow-y-auto"
-			style="scroll-behavior: smooth;"
+			class="flex-1 overflow-y-auto scroll-smooth"
 		>
 			{#if isFetching}
 				<div class="flex items-center justify-center p-4 text-gray-500">Loading...</div>
@@ -219,17 +254,21 @@
 						index === highlightedIndex
 							? 'bg-neutral-100'
 							: ''} hover:bg-neutral-100 {optionClassName}"
-						style="
-							height: {optionHeight};
-							padding-left: {padding};
-							padding-right: {padding};
-							-webkit-tap-highlight-color: transparent;
-						"
+						style={buildOptionStyle()}
 						role="option"
-						aria-selected={selectedOption.value === option.value}
+						aria-selected={isOptionSelected(option)}
 						onclick={() => onSelect(option)}
 						tabindex="0"
 					>
+						{#if isMulti}
+							<div class="mr-3 h-5 w-5 flex-shrink-0 text-blue-600">
+								{#if isOptionSelected(option)}
+									<MdCheckBox />
+								{:else}
+									<MdCheckBoxOutlineBlank />
+								{/if}
+							</div>
+						{/if}
 						<span class="w-full truncate text-left">{option.label}</span>
 					</button>
 				{/each}

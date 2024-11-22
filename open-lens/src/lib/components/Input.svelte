@@ -1,8 +1,11 @@
 <script lang="ts">
+	import MdClose from 'svelte-icons/md/MdClose.svelte';
+
 	let {
 		value = '',
 		placeholder = '',
 		type = 'text',
+		disabled = false,
 		// Input styling
 		minWidth = '',
 		height = '',
@@ -14,9 +17,11 @@
 		right = '',
 		bottom = '',
 		// Optional class names
-		className = '',
+		wrapperClassName = '',
+		inputClassName = '',
 		// Optional props
 		autoFocus = false,
+		showClear = true,
 		Icon = null,
 		onInput = (value: string) => {},
 		onChange = (value: string) => {},
@@ -27,6 +32,7 @@
 		value: string;
 		placeholder?: string;
 		type?: string;
+		disabled?: boolean;
 		minWidth?: string;
 		height?: string;
 		padding?: string;
@@ -35,8 +41,10 @@
 		top?: string;
 		right?: string;
 		bottom?: string;
-		className?: string;
+		wrapperClassName?: string;
+		inputClassName?: string;
 		autoFocus?: boolean;
+		showClear?: boolean;
 		Icon?: new () => any;
 		onInput?: (value: string) => void;
 		onChange?: (value: string) => void;
@@ -46,6 +54,31 @@
 	}>();
 
 	let inputEl = $state<HTMLInputElement | null>(null);
+
+	function buildWrapperStyle() {
+		const styles = [];
+		
+		if (minWidth) styles.push(`min-width: ${minWidth}`);
+		if (left) styles.push(`left: ${left}`);
+		if (top) styles.push(`top: ${top}`);
+		if (right) styles.push(`right: ${right}`);
+		if (bottom) styles.push(`bottom: ${bottom}`);
+		
+		return styles.join(';');
+	}
+
+	function buildInputContainerStyle() {
+		const styles = [];
+		
+		if (height) styles.push(`height: ${height}`);
+		if (padding) {
+			styles.push(`padding-left: ${padding}`);
+			styles.push(`padding-right: ${padding}`);
+		}
+		if (borderRadius) styles.push(`border-radius: ${borderRadius}`);
+		
+		return styles.join(';');
+	}
 
 	function handleInput(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -57,7 +90,15 @@
 		onChange(target.value);
 	}
 
-	// Handle autofocus
+	function handleClear() {
+		onInput('');
+		onChange('');
+		value = '';
+		if (inputEl) {
+			inputEl.focus();
+		}
+	}
+
 	$effect(() => {
 		if (autoFocus && inputEl) {
 			inputEl.focus();
@@ -65,23 +106,16 @@
 	});
 </script>
 
-<div class="relative inline-block">
-	<div
-		class="relative flex items-center border border-neutral-200 bg-white text-gray-900 outline-none {className}"
-		style="
-            min-width: {minWidth};
-            height: {height};
-            padding-left: {padding};
-            padding-right: {padding};
-            border-radius: {borderRadius};
-            left: {left};
-            top: {top};
-            right: {right};
-            bottom: {bottom};
-        "
+<div 
+	class="relative {wrapperClassName}"
+	style={buildWrapperStyle()}
+>
+	<div 
+		class="flex items-center border bg-white {disabled ? 'cursor-not-allowed opacity-50' : ''}"
+		style={buildInputContainerStyle()}
 	>
 		{#if Icon}
-			<div class="absolute left-3 flex h-6 w-6 items-center justify-center text-gray-400">
+			<div class="flex h-6 w-6 items-center justify-center text-gray-400">
 				<Icon />
 			</div>
 		{/if}
@@ -89,14 +123,25 @@
 		<input
 			bind:this={inputEl}
 			{type}
-			bind:value
+			{disabled}
 			{placeholder}
+			bind:value
 			oninput={handleInput}
 			onchange={handleChange}
 			onkeydown={onKeydown}
 			onfocus={onFocus}
 			onblur={onBlur}
-			class="h-full w-full bg-transparent outline-none {Icon ? 'pl-8' : ''}"
+			class="w-full bg-transparent outline-none disabled:cursor-not-allowed {Icon ? 'mx-3' : ''} {inputClassName}"
 		/>
+
+		{#if showClear && value && !disabled}
+			<button
+				type="button"
+				onclick={handleClear}
+				class="flex h-6 w-6 items-center justify-center text-gray-500"
+			>
+				<MdClose />
+			</button>
+		{/if}
 	</div>
 </div>
