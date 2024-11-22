@@ -13,20 +13,20 @@ const NAVLIST = [
 		showInHeader: true,
 		isContent: true
 	},
-	{
-		title: 'Trending Now',
-		subtitle: 'Discover what is trending in the world of scholarly knowledge',
-		href: '/trending',
-		showInHeader: true,
-		isContent: true
-	},
-	{
-		title: 'Year in Search',
-		subtitle: 'Explore the year in scholarly knowledge',
-		href: '/year-in-search',
-		showInHeader: false,
-		isContent: true
-	},
+	// {
+	// 	title: 'Trending Now',
+	// 	subtitle: 'Discover what is trending in the world of scholarly knowledge',
+	// 	href: '/trending',
+	// 	showInHeader: true,
+	// 	isContent: true
+	// },
+	// {
+	// 	title: 'Year in Search',
+	// 	subtitle: 'Explore the year in scholarly knowledge',
+	// 	href: '/year-in-search',
+	// 	showInHeader: false,
+	// 	isContent: true
+	// },
 	{
 		title: 'Help',
 		subtitle: 'Get help with OpenLens',
@@ -34,13 +34,13 @@ const NAVLIST = [
 		showInHeader: false,
 		isContent: false
 	},
-	{
-		title: 'Send Feedback',
-		subtitle: 'Send feedback to the OpenLens team',
-		href: '/feedback',
-		showInHeader: false,
-		isContent: false
-	}
+	// {
+	// 	title: 'Send Feedback',
+	// 	subtitle: 'Send feedback to the OpenLens team',
+	// 	href: '/feedback',
+	// 	showInHeader: false,
+	// 	isContent: false
+	// }
 ];
 
 const DATA = {
