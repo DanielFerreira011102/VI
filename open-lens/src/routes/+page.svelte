@@ -169,13 +169,13 @@
 		}
 	}
 
-	function handleSort(option: Option) {
+	function handleSort(option: Option | Option[]) {
 		sortField = option.value as SortField;
 		currentPage = 1;
 		fetchInstitutions();
 	}
 
-	function handleDirectionChange(option: Option) {
+	function handleDirectionChange(option: Option | Option[]) {
 		sortDirection = option.value as SortDirection;
 		currentPage = 1;
 		fetchInstitutions();

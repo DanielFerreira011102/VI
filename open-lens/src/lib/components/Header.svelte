@@ -11,7 +11,7 @@
 	const openSideMenu = () => (open = true);
 
 	async function handleNavClick(e: MouseEvent, href: string) {
-		if (href === '/explore' && $page.url.pathname === '/explore') {
+		if (href === '/explore') {
 			e.preventDefault();
 			termStore.resetToInitial();
 			await goto('/explore', { replaceState: true });
