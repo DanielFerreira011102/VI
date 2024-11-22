@@ -3,16 +3,13 @@
 	import { page } from '$app/stores';
 	import { dataStore } from '$lib/stores/dataStore';
 	import MdSearch from 'svelte-icons/md/MdSearch.svelte';
-	import MdTrendingUp from 'svelte-icons/md/MdTrendingUp.svelte';
-	import MdAccountBalance from 'svelte-icons/md/MdAccountBalance.svelte';
 	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
-	import MdFeedback from 'svelte-icons/md/MdFeedback.svelte';
 	import Logo from '$lib/assets/logo.png';
 
 	let { open = $bindable() } = $props();
 	const onClose = () => (open = false);
 
-	const icons = [MdSearch, MdTrendingUp, MdAccountBalance, MdHelpOutline, MdFeedback];
+	const icons = [MdSearch, MdHelpOutline];
 </script>
 
 <div class="flex items-center justify-center">
