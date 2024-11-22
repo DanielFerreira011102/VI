@@ -57,26 +57,26 @@
 
 	function buildWrapperStyle() {
 		const styles = [];
-		
+
 		if (minWidth) styles.push(`min-width: ${minWidth}`);
 		if (left) styles.push(`left: ${left}`);
 		if (top) styles.push(`top: ${top}`);
 		if (right) styles.push(`right: ${right}`);
 		if (bottom) styles.push(`bottom: ${bottom}`);
-		
+
 		return styles.join(';');
 	}
 
 	function buildInputContainerStyle() {
 		const styles = [];
-		
+
 		if (height) styles.push(`height: ${height}`);
 		if (padding) {
 			styles.push(`padding-left: ${padding}`);
 			styles.push(`padding-right: ${padding}`);
 		}
 		if (borderRadius) styles.push(`border-radius: ${borderRadius}`);
-		
+
 		return styles.join(';');
 	}
 
@@ -106,11 +106,8 @@
 	});
 </script>
 
-<div 
-	class="relative {wrapperClassName}"
-	style={buildWrapperStyle()}
->
-	<div 
+<div class="relative {wrapperClassName}" style={buildWrapperStyle()}>
+	<div
 		class="flex items-center border bg-white {disabled ? 'cursor-not-allowed opacity-50' : ''}"
 		style={buildInputContainerStyle()}
 	>
@@ -131,7 +128,9 @@
 			onkeydown={onKeydown}
 			onfocus={onFocus}
 			onblur={onBlur}
-			class="w-full bg-transparent outline-none disabled:cursor-not-allowed {Icon ? 'mx-3' : ''} {inputClassName}"
+			class="w-full bg-transparent outline-none disabled:cursor-not-allowed {Icon
+				? 'mx-3'
+				: ''} {inputClassName}"
 		/>
 
 		{#if showClear && value && !disabled}

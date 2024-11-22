@@ -44,7 +44,7 @@
 	});
 </script>
 
-<LoadingStates {loadingState} />
+<LoadingStates {loadingState} fullScreen={true} />
 
 {#if !loadingState.isLoading && !loadingState.error}
 	<SearchHeader />

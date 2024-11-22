@@ -72,7 +72,7 @@
 
 	function buildDropdownStyle() {
 		const styles = [];
-		
+
 		if (minWidth) styles.push(`min-width: ${minWidth}`);
 		if (width) styles.push(`width: ${width}`);
 		if (maxWidth) styles.push(`max-width: ${maxWidth}`);
@@ -81,25 +81,25 @@
 		if (top) styles.push(`top: ${top}`);
 		if (right) styles.push(`right: ${right}`);
 		if (bottom) styles.push(`bottom: ${bottom}`);
-		
+
 		return styles.join(';');
 	}
 
 	function buildOptionStyle() {
 		const styles = [];
-		
+
 		if (optionHeight) styles.push(`height: ${optionHeight}`);
 		if (padding) {
 			styles.push(`padding-left: ${padding}`);
 			styles.push(`padding-right: ${padding}`);
 		}
-		
+
 		return styles.join(';');
 	}
 
 	function isOptionSelected(option: Option): boolean {
 		if (isMulti) {
-			return selectedOptions.some(selected => selected.value === option.value);
+			return selectedOptions.some((selected) => selected.value === option.value);
 		}
 		return selectedOption?.value === option.value;
 	}
@@ -238,10 +238,7 @@
 			</div>
 		{/if}
 
-		<div
-			bind:this={optionsContainer}
-			class="flex-1 overflow-y-auto scroll-smooth"
-		>
+		<div bind:this={optionsContainer} class="flex-1 overflow-y-auto scroll-smooth">
 			{#if isFetching}
 				<div class="flex items-center justify-center p-4 text-gray-500">Loading...</div>
 			{:else if options.length === 0}

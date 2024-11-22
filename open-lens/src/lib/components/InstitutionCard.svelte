@@ -15,7 +15,9 @@
 	}
 </script>
 
-<div class="flex flex-col h-full rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+<div
+	class="flex h-full flex-col rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+>
 	<div
 		role="button"
 		tabindex="0"
@@ -23,7 +25,7 @@
 		onclick={handleCardClick}
 		onkeydown={(e) => e.key === 'Enter' && handleCardClick()}
 	>
-		<div class="flex items-center gap-2 mb-2">
+		<div class="mb-2 flex items-center gap-2">
 			<div class="h-6 w-6 text-gray-600">
 				<MdSchool />
 			</div>

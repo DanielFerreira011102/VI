@@ -30,7 +30,7 @@
 		dropdownRight = '',
 		dropdownBottom = '',
 		// Optional class names
-		wrapperClassName = '', 
+		wrapperClassName = '',
 		buttonClassName = '',
 		dropdownClassName = '',
 		optionClassName = '',
@@ -84,7 +84,7 @@
 
 	function buildStyleString() {
 		const styles = [];
-		
+
 		if (buttonMinWidth) styles.push(`min-width: ${buttonMinWidth}`);
 		if (buttonHeight) styles.push(`height: ${buttonHeight}`);
 		if (buttonPadding) {
@@ -92,7 +92,7 @@
 			styles.push(`padding-right: ${buttonPadding}`);
 		}
 		if (buttonBorderRadius) styles.push(`border-radius: ${buttonBorderRadius}`);
-		
+
 		return styles.join(';');
 	}
 

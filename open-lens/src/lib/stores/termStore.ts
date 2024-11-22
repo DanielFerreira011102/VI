@@ -7,221 +7,221 @@ import { topicStore } from './topicStore';
 import { fetchInstitutionData, fetchInstitutionsParallel } from '$lib/services/api';
 
 const createInitialTerm = (): Term => ({
-  id: '1',
-  value: '',
-  type: 'search',
-  color: TERM_COLORS[0],
-  isLoading: false
+	id: '1',
+	value: '',
+	type: 'search',
+	color: TERM_COLORS[0],
+	isLoading: false
 });
 
 function createTermStore() {
-  const store = writable<Term[]>([createInitialTerm()]);
-  const { subscribe, set, update } = store;
+	const store = writable<Term[]>([createInitialTerm()]);
+	const { subscribe, set, update } = store;
 
-  const updateURL = (terms: Term[]) => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const selectedTerms = terms
-      .filter((t) => t.type === 'selected')
-      .map((t) => t.value)
-      .join(',');
+	const updateURL = (terms: Term[]) => {
+		const searchParams = new URLSearchParams(window.location.search);
+		const selectedTerms = terms
+			.filter((t) => t.type === 'selected')
+			.map((t) => t.value)
+			.join(',');
 
-    if (selectedTerms) {
-      searchParams.set('q', selectedTerms);
-    } else {
-      searchParams.delete('q');
-    }
+		if (selectedTerms) {
+			searchParams.set('q', selectedTerms);
+		} else {
+			searchParams.delete('q');
+		}
 
-    const newURL = `/explore${searchParams.toString() ? `?${searchParams}` : ''}`;
-    goto(newURL, { replaceState: true });
-  };
+		const newURL = `/explore${searchParams.toString() ? `?${searchParams}` : ''}`;
+		goto(newURL, { replaceState: true });
+	};
 
-  const addCompareTerm = (terms: Term[]): Term[] =>
-    terms.length < MAX_TERMS && !terms.some((t) => t.type === 'compare')
-      ? [
-          ...terms,
-          {
-            id: String(terms.length + 1),
-            value: '',
-            type: 'compare',
-            color: TERM_COLORS[terms.length],
-            isLoading: false
-          }
-        ]
-      : terms;
+	const addCompareTerm = (terms: Term[]): Term[] =>
+		terms.length < MAX_TERMS && !terms.some((t) => t.type === 'compare')
+			? [
+					...terms,
+					{
+						id: String(terms.length + 1),
+						value: '',
+						type: 'compare',
+						color: TERM_COLORS[terms.length],
+						isLoading: false
+					}
+				]
+			: terms;
 
-  const refreshTopicData = async (terms: Term[], topicId: string) => {
-    const selectedTerms = terms.filter((t) => t.type === 'selected' && t.value);
-    if (!selectedTerms.length) return terms;
+	const refreshTopicData = async (terms: Term[], topicId: string) => {
+		const selectedTerms = terms.filter((t) => t.type === 'selected' && t.value);
+		if (!selectedTerms.length) return terms;
 
-    const termValues = selectedTerms.map(t => t.value);
-    const updatedTerms = [...terms];
-    
-    // Mark terms as loading
-    selectedTerms.forEach(term => {
-      const index = terms.findIndex((t) => t.id === term.id);
-      if (index !== -1) {
-        updatedTerms[index] = { ...term, isLoading: true };
-      }
-    });
+		const termValues = selectedTerms.map((t) => t.value);
+		const updatedTerms = [...terms];
 
-    try {
-      const results = await fetchInstitutionsParallel(termValues, topicId);
-      selectedTerms.forEach(term => {
-        const index = terms.findIndex((t) => t.id === term.id);
-        if (index !== -1) {
-          updatedTerms[index] = { 
-            ...term, 
-            isLoading: false,
-            data: results.get(term.value) || null 
-          };
-        }
-      });
-    } catch (error) {
-      console.error('Error refreshing topic data:', error);
-      selectedTerms.forEach(term => {
-        const index = terms.findIndex((t) => t.id === term.id);
-        if (index !== -1) {
-          updatedTerms[index] = { ...term, isLoading: false, data: null };
-        }
-      });
-    }
+		// Mark terms as loading
+		selectedTerms.forEach((term) => {
+			const index = terms.findIndex((t) => t.id === term.id);
+			if (index !== -1) {
+				updatedTerms[index] = { ...term, isLoading: true };
+			}
+		});
 
-    return updatedTerms;
-  };
+		try {
+			const results = await fetchInstitutionsParallel(termValues, topicId);
+			selectedTerms.forEach((term) => {
+				const index = terms.findIndex((t) => t.id === term.id);
+				if (index !== -1) {
+					updatedTerms[index] = {
+						...term,
+						isLoading: false,
+						data: results.get(term.value) || null
+					};
+				}
+			});
+		} catch (error) {
+			console.error('Error refreshing topic data:', error);
+			selectedTerms.forEach((term) => {
+				const index = terms.findIndex((t) => t.id === term.id);
+				if (index !== -1) {
+					updatedTerms[index] = { ...term, isLoading: false, data: null };
+				}
+			});
+		}
 
-  return {
-    subscribe,
-    initialize: async (queryString: string) => {
-      loadingStore.startLoading();
-      try {
-        const params = new URLSearchParams(queryString);
-        const queryParam = params.get('q');
-        const terms = queryParam
-          ? decodeURIComponent(queryParam)
-              .split(',')
-              .map((term) => term.trim())
-              .filter(Boolean)
-          : [];
+		return updatedTerms;
+	};
 
-        const currentTopic = get(topicStore);
+	return {
+		subscribe,
+		initialize: async (queryString: string) => {
+			loadingStore.startLoading();
+			try {
+				const params = new URLSearchParams(queryString);
+				const queryParam = params.get('q');
+				const terms = queryParam
+					? decodeURIComponent(queryParam)
+							.split(',')
+							.map((term) => term.trim())
+							.filter(Boolean)
+					: [];
 
-        if (!terms.length) {
-          set([createInitialTerm()]);
-          return;
-        }
+				const currentTopic = get(topicStore);
 
-        const termsWithLoading = terms.map((value, index) => ({
-          id: String(index + 1),
-          value,
-          type: 'selected' as const,
-          color: TERM_COLORS[index],
-          isLoading: true
-        }));
+				if (!terms.length) {
+					set([createInitialTerm()]);
+					return;
+				}
 
-        set(addCompareTerm(termsWithLoading));
+				const termsWithLoading = terms.map((value, index) => ({
+					id: String(index + 1),
+					value,
+					type: 'selected' as const,
+					color: TERM_COLORS[index],
+					isLoading: true
+				}));
 
-        try {
-          const results = await fetchInstitutionsParallel(terms, currentTopic.id);
-          const updatedTerms = termsWithLoading.map(term => ({
-            ...term,
-            isLoading: false,
-            data: results.get(term.value) || null
-          }));
+				set(addCompareTerm(termsWithLoading));
 
-          set(addCompareTerm(updatedTerms));
-        } catch (error) {
-          console.error('Error fetching institution data:', error);
-          loadingStore.setError('Failed to fetch institution data');
-        }
-      } catch (error) {
-        console.error('Error initializing terms:', error);
-        set([createInitialTerm()]);
-        loadingStore.setError('Failed to initialize terms');
-      } finally {
-        loadingStore.stopLoading();
-      }
-    },
+				try {
+					const results = await fetchInstitutionsParallel(terms, currentTopic.id);
+					const updatedTerms = termsWithLoading.map((term) => ({
+						...term,
+						isLoading: false,
+						data: results.get(term.value) || null
+					}));
 
-    updateTerm: async (id: string, value: string) => {
-      const currentTopic = get(topicStore);
+					set(addCompareTerm(updatedTerms));
+				} catch (error) {
+					console.error('Error fetching institution data:', error);
+					loadingStore.setError('Failed to fetch institution data');
+				}
+			} catch (error) {
+				console.error('Error initializing terms:', error);
+				set([createInitialTerm()]);
+				loadingStore.setError('Failed to initialize terms');
+			} finally {
+				loadingStore.stopLoading();
+			}
+		},
 
-      update((terms) => {
-        const updatedTerms = terms
-          .filter((term) => term.type !== 'compare')
-          .map((term) =>
-            term.id === id ? { ...term, value, type: 'selected', isLoading: true } : term
-          );
-        return addCompareTerm(updatedTerms);
-      });
+		updateTerm: async (id: string, value: string) => {
+			const currentTopic = get(topicStore);
 
-      try {
-        const data = await fetchInstitutionData(value, currentTopic.id);
-        update((terms) => {
-          const updatedTerms = terms.map((term) =>
-            term.id === id ? { ...term, isLoading: false, data } : term
-          );
-          updateURL(updatedTerms);
-          return updatedTerms;
-        });
-      } catch (error) {
-        console.error('Error updating term:', error);
-        update((terms) =>
-          terms.map((term) => (term.id === id ? { ...term, isLoading: false, data: null } : term))
-        );
-      }
-    },
+			update((terms) => {
+				const updatedTerms = terms
+					.filter((term) => term.type !== 'compare')
+					.map((term) =>
+						term.id === id ? { ...term, value, type: 'selected', isLoading: true } : term
+					);
+				return addCompareTerm(updatedTerms);
+			});
 
-    refreshTopicData: async (topicId: string) => {
-      const terms = get(store);
-      const refreshedTerms = await refreshTopicData(terms, topicId);
-      set(refreshedTerms);
-    },
+			try {
+				const data = await fetchInstitutionData(value, currentTopic.id);
+				update((terms) => {
+					const updatedTerms = terms.map((term) =>
+						term.id === id ? { ...term, isLoading: false, data } : term
+					);
+					updateURL(updatedTerms);
+					return updatedTerms;
+				});
+			} catch (error) {
+				console.error('Error updating term:', error);
+				update((terms) =>
+					terms.map((term) => (term.id === id ? { ...term, isLoading: false, data: null } : term))
+				);
+			}
+		},
 
-    convertCompareToSearch: (id: string) => {
-      update((terms) => {
-        const updatedTerms = terms.map((term) =>
-          term.id === id ? { ...term, type: 'search', value: '' } : term
-        );
-        return updatedTerms;
-      });
-    },
+		refreshTopicData: async (topicId: string) => {
+			const terms = get(store);
+			const refreshedTerms = await refreshTopicData(terms, topicId);
+			set(refreshedTerms);
+		},
 
-    setType: (id: string, type: Term['type']) => {
-      update((terms) => {
-        const updatedTerms = terms.map((term) => (term.id === id ? { ...term, type } : term));
-        updateURL(updatedTerms);
-        return updatedTerms;
-      });
-    },
+		convertCompareToSearch: (id: string) => {
+			update((terms) => {
+				const updatedTerms = terms.map((term) =>
+					term.id === id ? { ...term, type: 'search', value: '' } : term
+				);
+				return updatedTerms;
+			});
+		},
 
-    deleteTerm: (id: string) => {
-      update((terms) => {
-        const filteredTerms = terms.filter((term) => term.id !== id);
+		setType: (id: string, type: Term['type']) => {
+			update((terms) => {
+				const updatedTerms = terms.map((term) => (term.id === id ? { ...term, type } : term));
+				updateURL(updatedTerms);
+				return updatedTerms;
+			});
+		},
 
-        if (!filteredTerms.length || !filteredTerms.some((t) => t.type === 'selected')) {
-          const initialTerm = createInitialTerm();
-          updateURL([initialTerm]);
-          return [initialTerm];
-        }
+		deleteTerm: (id: string) => {
+			update((terms) => {
+				const filteredTerms = terms.filter((term) => term.id !== id);
 
-        const normalizedTerms = filteredTerms.map((term, index) => ({
-          ...term,
-          id: String(index + 1),
-          color: TERM_COLORS[index]
-        }));
+				if (!filteredTerms.length || !filteredTerms.some((t) => t.type === 'selected')) {
+					const initialTerm = createInitialTerm();
+					updateURL([initialTerm]);
+					return [initialTerm];
+				}
 
-        const finalTerms = addCompareTerm(normalizedTerms);
-        updateURL(finalTerms);
-        return finalTerms;
-      });
-    },
+				const normalizedTerms = filteredTerms.map((term, index) => ({
+					...term,
+					id: String(index + 1),
+					color: TERM_COLORS[index]
+				}));
 
-    resetToInitial: () => {
-      const initialTerm = createInitialTerm();
-      set([initialTerm]);
-      updateURL([initialTerm]);
-    }
-  };
+				const finalTerms = addCompareTerm(normalizedTerms);
+				updateURL(finalTerms);
+				return finalTerms;
+			});
+		},
+
+		resetToInitial: () => {
+			const initialTerm = createInitialTerm();
+			set([initialTerm]);
+			updateURL([initialTerm]);
+		}
+	};
 }
 
 export const termStore = createTermStore();

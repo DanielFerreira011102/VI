@@ -229,7 +229,7 @@
 			</div>
 
 			<!-- Sort controls take full width on mobile, 6 columns on desktop -->
-			<div class="grid sm:col-span-6 sm:grid-cols-2 gap-4">
+			<div class="grid gap-4 sm:col-span-6 sm:grid-cols-2">
 				<Select
 					options={sortOptions}
 					onChange={handleSort}
@@ -258,7 +258,7 @@
 	</div>
 
 	<!-- Loading States -->
-	<LoadingStates loadingState={{ isLoading, error }} />
+	<LoadingStates loadingState={{ isLoading, error }} fullScreen={true} />
 
 	{#if !isLoading && !error}
 		<!-- Responsive grid for institution cards -->
@@ -270,7 +270,7 @@
 
 		<!-- Pagination -->
 		<Pagination
-			currentPage={currentPage}
+			{currentPage}
 			totalPages={Math.ceil(totalCount / perPage)}
 			onPageChange={handlePageChange}
 			disabled={isLoading}

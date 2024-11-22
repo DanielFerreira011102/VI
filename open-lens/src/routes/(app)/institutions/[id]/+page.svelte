@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Select from '$lib/components/Select.svelte';
-	import BarChart from '$lib/components/BarChart.svelte';
-	import PieChart from '$lib/components/PieChart.svelte';
-	import LineChart from '$lib/components/LineChart.svelte';
+	import BarChart from '$lib/components/charts/BarChart.svelte';
+	import PieChart from '$lib/components/charts/PieChart.svelte';
+	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import type { PageData } from './$types';
 	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
 
@@ -13,48 +13,78 @@
 	type MetricType = 'works' | 'citations' | 'avgCitations';
 	let selectedMetric = $state<MetricType>('works');
 
-	// Chart configurations
+	// Chart configurations organized by chart type
 	const chartConfigs = {
 		bar: {
-			xAxis: {
-				interval: 1,
-				format: (value: any) => value?.toString() || '',
-				rotation: 0,
-				fontSize: 14,
-				padding: 25,
-				filter: () => true,
-				color: '#9e9e9e',
-				showAxis: true,
-				axisColor: '#9e9e9e'
-			},
-			yAxis: {
-				min: 0,
-				max: 100,
-				interval: 20,
-				rotation: 0,
-				fontSize: 14,
-				padding: 15,
-				filter: (value: any, index: number) => index > 0,
-				format: (value: number) => {
-					if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
-					if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-					if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-					return value.toString();
+			yearly: {
+				xAxis: {
+					interval: 1,
+					format: (value: any) => value?.toString() || '',
+					rotation: 0,
+					fontSize: 14,
+					padding: 25,
+					filter: () => true,
+					color: '#9e9e9e',
+					showAxis: true,
+					axisColor: '#9e9e9e'
 				},
-				gridLines: true,
-				gridLineColor: '#e0e0e0',
-				color: '#bdbdbd',
-				showAxis: false,
-				axisColor: '#9e9e9e'
-			},
-			series: {
-				barWidth: 0.8,
-				barSpacing: 0.05,
-				showHoverEffects: true,
-				hoverStyle: {
-					borderWidth: 2,
-					borderOpacity: 0.15
+				yAxis: {
+					min: 0,
+					max: 100,
+					interval: 20,
+					rotation: 0,
+					fontSize: 14,
+					padding: 15,
+					filter: (value: any, index: number) => index > 0,
+					format: (value: number) => {
+						if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+						if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+						if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+						return value.toString();
+					},
+					gridLines: true,
+					gridLineColor: '#e0e0e0',
+					color: '#bdbdbd',
+					showAxis: false,
+					axisColor: '#9e9e9e'
+				},
+				series: {
+					barWidth: 0.8,
+					barSpacing: 0.05,
+					showHoverEffects: true,
+					hoverStyle: {
+						borderWidth: 2,
+						borderOpacity: 0.15
+					}
 				}
+			}
+		},
+		pie: {
+			openAccess: {
+				seriesConfig: {
+					innerRadius: 0.6,
+					padAngle: 0.02,
+					cornerRadius: 0,
+					showHoverEffects: true,
+					hoverStyle: {
+						borderWidth: 2,
+						borderOpacity: 0.15
+					}
+				},
+				colors: ['#4ecdc4', '#ff6b6b']
+			},
+			funders: {
+				seriesConfig: {
+					innerRadius: 0.6,
+					padAngle: 0.02,
+					cornerRadius: 0,
+					showHoverEffects: true,
+					hoverStyle: {
+						borderWidth: 2,
+						borderOpacity: 0.15
+					}
+				},
+				colors: ['#4ecdc4', '#ff6b6b']
 			}
 		}
 	};
@@ -62,7 +92,7 @@
 	type InstitutionChartState = {
 		yearly: {
 			data: any[];
-			yAxis: typeof chartConfigs.bar.yAxis;
+			yAxis: typeof chartConfigs.bar.yearly.yAxis;
 			series: {
 				values: string[];
 				color: string;
@@ -74,7 +104,7 @@
 	let chartState = $state<InstitutionChartState>({
 		yearly: {
 			data: [],
-			yAxis: chartConfigs.bar.yAxis,
+			yAxis: chartConfigs.bar.yearly.yAxis,
 			series: {
 				values: [],
 				color: '#FFC107'
@@ -107,13 +137,15 @@
 		}
 	};
 
-	// Data transformers
+	// Data transformers organized by chart type
 	const transformers = {
-		yearly: (rawData: any[], metric: MetricType) => {
-			return rawData.map((yearData) => ({
-				year: yearData.year,
-				[metric]: getMetricValue(yearData, metric)
-			}));
+		bar: {
+			yearly: (rawData: any[], metric: MetricType) => {
+				return rawData.map((yearData) => ({
+					year: yearData.year,
+					[metric]: getMetricValue(yearData, metric)
+				}));
+			}
 		},
 		pie: {
 			openAccess: (data: any) => {
@@ -123,7 +155,6 @@
 				}));
 			},
 			funders: (data: any) => {
-				// You can add funders transformation logic here when needed
 				return data.openAccessDivision.group_by.map((item: any) => ({
 					label: item.key === 'true' ? 'Open' : 'Restrict',
 					value: item.count
@@ -132,29 +163,33 @@
 		}
 	};
 
-	// Templates
+	// Templates organized by chart type
 	const templates = {
-		yearly: (item: any) => `
-			<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
-				<div class="pb-2 font-semibold">Year ${item.year}</div>
-				<div class="flex items-center justify-between h-4 mt-2">
-					<span class="truncate">${getMetricLabel(selectedMetric)}</span>
-					<span class="ml-4" style="color: ${chartState.yearly.series.color}">
-						${
-							selectedMetric === 'avgCitations'
-								? item[selectedMetric].toFixed(1)
-								: item[selectedMetric].toLocaleString()
-						}
-					</span>
+		bar: {
+			yearly: (item: any) => `
+				<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
+					<div class="pb-2 font-semibold">Year ${item.year}</div>
+					<div class="flex items-center justify-between h-4 mt-2">
+						<span class="truncate">${getMetricLabel(selectedMetric)}</span>
+						<span class="ml-4" style="color: ${chartState.yearly.series.color}">
+							${
+								selectedMetric === 'avgCitations'
+									? item[selectedMetric].toFixed(1)
+									: item[selectedMetric].toLocaleString()
+							}
+						</span>
+					</div>
 				</div>
-			</div>
-		`,
-		pie: (item: any) => `
-			<div class="bg-white shadow-lg rounded p-2">
-				<div class="font-bold">${item.label}</div>
-				<div>value: ${item.value}</div>
-			</div>
-		`
+			`
+		},
+		pie: {
+			default: (item: any) => `
+				<div class="bg-white shadow-lg rounded p-2">
+					<div class="font-bold">${item.label}</div>
+					<div>value: ${item.value}</div>
+				</div>
+			`
+		}
 	};
 
 	// Effect to update chart data
@@ -163,7 +198,7 @@
 			chartState = {
 				yearly: {
 					data: [],
-					yAxis: chartConfigs.bar.yAxis,
+					yAxis: chartConfigs.bar.yearly.yAxis,
 					series: {
 						values: [],
 						color: '#FFC107'
@@ -174,7 +209,7 @@
 		}
 
 		// Transform data using the transformer
-		const yearlyData = transformers.yearly(data.yearlyWorkOutput, selectedMetric);
+		const yearlyData = transformers.bar.yearly(data.yearlyWorkOutput, selectedMetric);
 
 		// Calculate max value based on selected metric
 		const maxValue = Math.max(...yearlyData.map((item) => item[selectedMetric]), 1);
@@ -197,7 +232,7 @@
 			yearly: {
 				data: yearlyData,
 				yAxis: {
-					...chartConfigs.bar.yAxis,
+					...chartConfigs.bar.yearly.yAxis,
 					max,
 					interval
 				},
@@ -267,18 +302,9 @@
 			<div>
 				<PieChart
 					data={transformers.pie.openAccess(data)}
-					colors={['#4ecdc4', '#ff6b6b']}
-					popupTemplate={templates.pie}
-					seriesConfig={{
-						innerRadius: 0.6,
-						padAngle: 0.02,
-						cornerRadius: 0,
-						showHoverEffects: true,
-						hoverStyle: {
-							borderWidth: 2,
-							borderOpacity: 0.15
-						}
-					}}
+					colors={chartConfigs.pie.openAccess.colors}
+					popupTemplate={templates.pie.default}
+					seriesConfig={chartConfigs.pie.openAccess.seriesConfig}
 				/>
 			</div>
 		</div>
@@ -294,18 +320,9 @@
 			<div class="container mx-auto">
 				<PieChart
 					data={transformers.pie.funders(data)}
-					colors={['#4ecdc4', '#ff6b6b']}
-					popupTemplate={templates.pie}
-					seriesConfig={{
-						innerRadius: 0.6,
-						padAngle: 0.02,
-						cornerRadius: 0,
-						showHoverEffects: true,
-						hoverStyle: {
-							borderWidth: 2,
-							borderOpacity: 0.15
-						}
-					}}
+					colors={chartConfigs.pie.funders.colors}
+					popupTemplate={templates.pie.default}
+					seriesConfig={chartConfigs.pie.funders.seriesConfig}
 				/>
 			</div>
 		</div>
@@ -342,11 +359,11 @@
 					series={chartState.yearly.series.values}
 					colors={Array(data.yearlyWorkOutput?.length || 0).fill(chartState.yearly.series.color)}
 					xAxisLabel="year"
-					xAxisConfig={chartConfigs.bar.xAxis}
+					xAxisConfig={chartConfigs.bar.yearly.xAxis}
 					yAxisConfig={chartState.yearly.yAxis}
-					popupTemplate={templates.yearly}
+					popupTemplate={templates.bar.yearly}
 					margins={{ left: 60, bottom: 40, right: 20, top: 20 }}
-					seriesConfig={chartConfigs.bar.series}
+					seriesConfig={chartConfigs.bar.yearly.series}
 				/>
 			</div>
 		</div>

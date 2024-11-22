@@ -33,7 +33,7 @@ const NAVLIST = [
 		href: '/help',
 		showInHeader: false,
 		isContent: false
-	},
+	}
 	// {
 	// 	title: 'Send Feedback',
 	// 	subtitle: 'Send feedback to the OpenLens team',

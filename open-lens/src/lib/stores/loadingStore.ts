@@ -1,3 +1,4 @@
+// loadingStore.ts
 import { writable } from 'svelte/store';
 import type { LoadingState } from '$lib/types/loading';
 

@@ -20,14 +20,14 @@ export interface Institution {
 		id: string;
 	};
 	geo?: {
-		city: string,
-		geonames_city_id: string,
-		region: string | null; 
+		city: string;
+		geonames_city_id: string;
+		region: string | null;
 		country_code: string;
 		country: string;
 		latitude: number;
 		longitude: number;
-	},
+	};
 	works?: {
 		apc_list_sum_usd: number;
 		apc_paid_sum_usd: number;

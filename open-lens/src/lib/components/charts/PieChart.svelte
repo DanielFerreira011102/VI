@@ -3,7 +3,7 @@
 	import * as d3 from 'd3';
 	import { measure } from '$lib/actions/measure';
 	import type { Dimensions, Margin, Position } from '$lib/types/chart';
-	import Main from './Main.svelte';
+	import Main from '../Main.svelte';
 
 	type PieChartDataPoint = {
 		label: string;
