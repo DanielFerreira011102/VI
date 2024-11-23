@@ -82,24 +82,30 @@
 		const parentName = node.parent?.data.name === 'root' ? node.data.name : node.parent?.data.name;
 		const color = getNodeColor(node);
 		return `
-				<div class="bg-white shadow-lg rounded p-2">
-				<div class="font-semibold" style="color: ${color}">
-					${node.data.name}
-					<span class="text-xs text-gray-500">(depth: ${node.depth})</span>
-				</div>
-				${node.value ? `<div>Value: ${node.value}</div>` : ''}
-				${node.children ? `<div>Children: ${node.children.length}</div>` : ''}
-				</div>
-			`;
+					<div class="bg-white shadow-lg rounded p-2">
+					<div class="font-semibold" style="color: ${color}">
+						${node.data.name}
+						<span class="text-xs text-gray-500">(depth: ${node.depth})</span>
+					</div>
+					${node.value ? `<div>Value: ${node.value}</div>` : ''}
+					${node.children ? `<div>Children: ${node.children.length}</div>` : ''}
+					</div>
+				`;
 	}
 
 	function getNodeColor(node: d3.HierarchyNode<HierarchyNode>) {
-		const parentName = node.parent?.data.name === 'root' ? node.data.name : node.parent?.data.name;
-		return colors[parentName]?.[node.depth] || '#CCCCCC';
+		// Find the top-level parent (institution)
+		let topParent = node;
+		while (topParent.parent && topParent.parent.data.name !== 'root') {
+			topParent = topParent.parent;
+		}
+
+		const institutionName = topParent.data.name;
+		return colors[institutionName]?.[node.depth] || '#CCCCCC';
 	}
 
 	function calculateRadius(node: d3.HierarchyNode<HierarchyNode>): number {
-		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 600;
+		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 900;
 	}
 
 	function isPointInCircle(px: number, py: number, cx: number, cy: number, r: number): boolean {
@@ -176,12 +182,12 @@
 			.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
 		const parentRadius = parentNode.r ?? 0;
-		const childrenPack = d3
+		const pack = d3
 			.pack<HierarchyNode>()
 			.size([parentRadius * 2, parentRadius * 2])
 			.padding(circleConfig.padding);
 
-		const packedChildren = childrenPack(tempHierarchy);
+		const packedChildren = pack(tempHierarchy);
 
 		if (packedChildren.children) {
 			parentNode.children.forEach((child, i) => {
@@ -192,6 +198,11 @@
 				child.x = packedChild.x - parentRadius + parentX;
 				child.y = packedChild.y - parentRadius + parentY;
 				child.r = packedChild.r;
+
+				// Recursively pack deeper levels
+				if (child.children) {
+					packChildren(child);
+				}
 			});
 		}
 	}
@@ -210,8 +221,8 @@
 			node.r = calculateRadius(node);
 		});
 
+		// Build complete node collection once
 		nodes = [...depth1Nodes];
-
 		depth1Nodes.forEach((node) => {
 			packChildren(node);
 			nodes = nodes.concat(node.descendants().slice(1));
@@ -229,16 +240,70 @@
 			.force('y', d3.forceY(innerHeight / 2).strength(0.1))
 			.force('box', boxingForce())
 			.on('tick', () => {
+				// Only update positions during simulation
 				depth1Nodes.forEach((node) => {
 					packChildren(node);
 				});
-				updateNodes(depth1Nodes, container);
 				updatePositions(container);
 			});
 
 		simulation.tick(300);
 
-		updateNodes(depth1Nodes, container);
+		// Final update after simulation is complete
+		updateNodes(nodes, container);
+	}
+
+	function updateNodes(
+		nodes: d3.HierarchyNode<HierarchyNode>[] = [],
+		container: d3.Selection<SVGGElement, unknown, null, undefined>
+	) {
+		const allNodes = container.selectAll('.node').data(nodes, (d: any) => d.data.name);
+
+		allNodes.exit().remove();
+
+		const newNodes = allNodes.enter().append('g').attr('class', 'node');
+
+		newNodes.append('circle');
+		newNodes
+			.append('text')
+			.attr('text-anchor', 'middle')
+			.attr('dominant-baseline', 'middle')
+			.style('pointer-events', 'none');
+
+		const allNodesWithEnter = allNodes.merge(newNodes as any);
+
+		allNodesWithEnter.each(function (node: any) {
+			const group = d3.select(this);
+			const style = circleConfig.levelStyle?.[node.depth] ?? {
+				strokeWidth: 1,
+				strokeOpacity: 0.5,
+				fillOpacity: 0.3
+			};
+
+			// Update circle
+			group
+				.select('circle')
+				.attr('r', node.r)
+				.attr('fill', getNodeColor(node))
+				.attr('fill-opacity', style.fillOpacity)
+				.attr('stroke', getNodeColor(node))
+				.attr('stroke-width', style.strokeWidth)
+				.attr('stroke-opacity', style.strokeOpacity);
+
+			// Update label
+			const label = group.select('text');
+			if (labelConfig.show && labelConfig.filter(node) && node.r >= labelConfig.minRadiusToShow) {
+				label
+					.attr('font-size', labelConfig.fontSize)
+					.attr('font-weight', labelConfig.fontWeight)
+					.attr('fill', labelConfig.color)
+					.text(node.data.name);
+
+				fitText(label, node.r);
+			} else {
+				label.text('');
+			}
+		});
 	}
 
 	function fitText(text: d3.Selection<SVGTextElement, any, any, any>, radius: number) {
@@ -275,67 +340,6 @@
 				text.text('');
 			}
 		}
-	}
-
-	function updateNodes(
-		depth1Nodes: d3.HierarchyNode<HierarchyNode>[] = [],
-		container: d3.Selection<SVGGElement, unknown, null, undefined>
-	) {
-		nodes = [...depth1Nodes];
-		depth1Nodes.forEach((node) => {
-			nodes = nodes.concat(node.descendants().slice(1));
-		});
-
-		const allNodes = container.selectAll('.node').data(nodes, (d: any) => d.data.name);
-
-		allNodes.exit().remove();
-
-		const newNodes = allNodes.enter().append('g').attr('class', 'node');
-
-		newNodes.append('circle');
-
-		// Add text without clipPath
-		newNodes
-			.append('text')
-			.attr('text-anchor', 'middle')
-			.attr('dominant-baseline', 'middle')
-			.style('pointer-events', 'none');
-
-		const allNodesWithEnter = allNodes.merge(newNodes as any);
-
-		allNodesWithEnter.each(function (node: any) {
-			const group = d3.select(this);
-			const style = circleConfig.levelStyle?.[node.depth] ?? {
-				strokeWidth: 2,
-				strokeOpacity: 1,
-				fillOpacity: 0.2
-			};
-
-			// Update circle
-			group
-				.select('circle')
-				.attr('r', node.r)
-				.attr('fill', getNodeColor(node))
-				.attr('fill-opacity', style.fillOpacity)
-				.attr('stroke', getNodeColor(node))
-				.attr('stroke-width', style.strokeWidth)
-				.attr('stroke-opacity', style.strokeOpacity);
-
-			// Update label
-			const label = group.select('text');
-			if (labelConfig.show && labelConfig.filter(node)) {
-				label
-					.attr('font-size', labelConfig.fontSize)
-					.attr('font-weight', labelConfig.fontWeight)
-					.attr('fill', labelConfig.color)
-					.text(node.data.name);
-
-				// Apply text fitting
-				fitText(label, node.r);
-			} else {
-				label.text('');
-			}
-		});
 	}
 
 	function boxingForce() {
@@ -418,12 +422,17 @@
 		const matrix = container?.getCTM();
 		if (!matrix) return;
 
+		// Transform to SVG coordinates
 		const transformedPoint = svgPoint.matrixTransform(matrix.inverse());
-		const hoveredNode = findHoveredNode(transformedPoint.x, transformedPoint.y);
+		const hoveredNode = findHoveredNode(
+			transformedPoint.x, // Remove the margin subtraction
+			transformedPoint.y // Remove the margin subtraction
+		);
 
 		if (hoveredNode) {
-			const children = new Set<d3.HierarchyNode<HierarchyNode>>();
-			hoveredNode.descendants().forEach((node) => children.add(node));
+			// Create a set with the hovered node and all its descendants
+			const highlightedNodes = new Set<d3.HierarchyNode<HierarchyNode>>();
+			hoveredNode.descendants().forEach((node) => highlightedNodes.add(node));
 
 			pointer = {
 				x: hoveredNode.x || 0,
@@ -431,7 +440,7 @@
 				show: true,
 				data: hoveredNode,
 				depth: hoveredNode.depth,
-				highlightedNodes: children
+				highlightedNodes // Use the set containing all descendants
 			};
 		} else {
 			pointer = {

@@ -13,10 +13,12 @@
 	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import BarChart from '$lib/components/charts/BarChart.svelte';
 	import StarChart from '$lib/components/charts/StarChart.svelte';
+	import CircularPackingChart from '$lib/components/charts/CircularPackingChart.svelte';
 	import Select from '$lib/components/Select.svelte';
-	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
+	import { helpTexts, helpTemplates } from '$lib/constants/helperTemplates';
 	import LoadingStates from '$lib/components/LoadingStates.svelte';
-	import CircularPackingChart from '../charts/CircularPackingChart.svelte';
+	import HelperPopup from '$lib/components/HelperPopup.svelte';
+	import type { Institution } from '$lib/types/institution';
 
 	let { selectedTerms } = $props<{ selectedTerms: Term[] }>();
 
@@ -263,8 +265,9 @@
 				circleConfig: {
 					padding: 10,
 					levelStyle: {
-						1: { strokeWidth: 2, strokeOpacity: 1, fillOpacity: 0.2 },
-						2: { strokeWidth: 1.5, strokeOpacity: 0.8, fillOpacity: 0.3 }
+						1: { strokeWidth: 2, strokeOpacity: 1, fillOpacity: 0.12 },
+						2: { strokeWidth: 1.8, strokeOpacity: 0.9, fillOpacity: 0.25 },
+						3: { strokeWidth: 1.6, strokeOpacity: 0.8, fillOpacity: 0.37 }
 					},
 					showHoverEffects: true
 				},
@@ -435,26 +438,109 @@
 					children: terms
 						.map((term) => {
 							const institution = term.data as Institution;
+
+							// First group topics by domain
+							const domainMap = new Map<
+								string,
+								{
+									name: string;
+									id: string;
+									children: Map<
+										string,
+										{
+											name: string;
+											id: string;
+											children: Map<
+												string,
+												{
+													name: string;
+													id: string;
+													children: Array<{
+														name: string;
+														id: string;
+														value: number;
+													}>;
+												}
+											>;
+										}
+									>;
+								}
+							>();
+
+							// Process each topic and build the hierarchy
+							institution.topics?.forEach((topic) => {
+								const domainId = topic.domain.id;
+								const fieldId = topic.field.id;
+								const subfieldId = topic.subfield.id;
+
+								// Initialize domain if not exists
+								if (!domainMap.has(domainId)) {
+									domainMap.set(domainId, {
+										name: topic.domain.display_name,
+										id: domainId,
+										children: new Map()
+									});
+								}
+
+								// Get domain and initialize field if not exists
+								const domain = domainMap.get(domainId)!;
+								if (!domain.children.has(fieldId)) {
+									domain.children.set(fieldId, {
+										name: topic.field.display_name,
+										id: fieldId,
+										children: new Map()
+									});
+								}
+
+								// Get field and initialize subfield if not exists
+								const field = domain.children.get(fieldId)!;
+								if (!field.children.has(subfieldId)) {
+									field.children.set(subfieldId, {
+										name: topic.subfield.display_name,
+										id: subfieldId,
+										children: []
+									});
+								}
+
+								// Add topic to subfield
+								const subfield = field.children.get(subfieldId)!;
+								subfield.children.push({
+									name: topic.display_name,
+									id: topic.id,
+									value: topic.count
+								});
+							});
+
+							// Convert the Maps to arrays for the final structure
 							return {
 								name: institution.display_name,
-								children:
-									institution.topics?.map((topic) => ({
-										name: topic.display_name,
-										value: topic.count
-									})) || []
+								children: Array.from(domainMap.values()).map((domain) => ({
+									name: domain.name,
+									children: Array.from(domain.children.values()).map((field) => ({
+										name: field.name,
+										children: Array.from(field.children.values()).map((subfield) => ({
+											name: subfield.name,
+											children: subfield.children
+										}))
+									}))
+								}))
 							};
 						})
 						.filter((inst) => inst.children.length > 0)
 				};
 
+				// Create colors object for all levels
 				const colors = Object.fromEntries(
 					terms
 						.filter((term) => term.data?.topics?.length)
 						.map((term) => [
 							term.data.display_name,
 							{
-								1: term.color + '40', // 25% opacity for institution level
-								2: term.color // Full opacity for topics
+								1: term.color + '20', // 12.5% opacity for institution level
+								2: term.color + '40', // 25% opacity for domain level
+								3: term.color + '60', // 37.5% opacity for field level
+								4: term.color + '80', // 50% opacity for subfield level
+								5: term.color // Full opacity for topics
 							}
 						])
 				);
@@ -522,48 +608,45 @@
 				return `
 				<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
 					<div class="pb-2 font-semibold">${item.label}</div>
-					<div class="flex items-center justify-between mt-2">
-						<span class="truncate">Works</span>
-						<span class="ml-4" style="color: ${term.color}">${item.values.works_count}</span>
-					</div>
-					<div class="flex items center justify-between mt-2">
-						<span class="truncate">Citations</span>
-						<span class="ml-4" style="color: ${term.color}">${item.values.cited_by_count}</span>
-					</div>
-					<div class="flex items center justify-between mt-2">
-						<span class="truncate">Impact Factor</span>
-						<span class="ml-4" style="color: ${term.color}">${item.values.mean_citedness.toFixed(2)}</span>
-					</div>
-					<div class="flex items center justify-between mt-2">
-						<span class="truncate">H-Index</span>
-						<span class="ml-4" style="color: ${term.color}">${item.values.h_index}</span>
-					</div>
-					<div class="flex items center justify-between mt-2">
-						<span class="truncate">i10-Index</span>
-						<span class="ml-4" style="color: ${term.color}">${item.values.i10_index}</span>
-					</div>
+					${chartConfigs.star.stats.axes
+						.map((axis) => {
+							const value = item.values[axis.key];
+							return `
+							<div class="flex items-center justify-between mt-2">
+								<span class="truncate">${axis.label}</span>
+								<span class="ml-4" style="color: ${term.color}">${
+									axis.key === 'mean_citedness' ? value.toFixed(2) : value
+								}</span>
+							</div>
+						`;
+						})
+						.join('')}
 				</div>
 			`;
 			}
 		},
 		packing: {
 			top: (node: d3.HierarchyNode<HierarchyNode>) => {
-				const parentName =
-					node.parent?.data.name === 'root' ? node.data.name : node.parent?.data.name;
-				const depth = node.depth;
+				// Just use the current node's name and data directly
 				const name = node.data.name;
 				const count = node.value;
-				// get color from the term color
-				const term = selectedTerms.find((term) => term.data.display_name === parentName);
+
+				// Find the top-level parent for color
+				let topParent = node;
+				while (topParent.parent && topParent.parent.data.name !== 'root') {
+					topParent = topParent.parent;
+				}
+				const term = selectedTerms.find((term) => term.data.display_name === topParent.data.name);
+
 				return `
-				<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-96 z-50">
-					<div class="pb-2 font-semibold">${name}</div>
-					<div class="flex items center justify-between mt-2">
-						<span class="truncate">Works</span>
-						<span class="ml-4" style="color: ${term.color}">${count}</span>
-					</div>
-				</div>
-			`;
+            <div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-96 z-50">
+                <div class="pb-2 font-semibold">${name}</div>
+                <div class="flex items center justify-between mt-2">
+                    <span class="truncate">Works</span>
+                    <span class="ml-4" style="color: ${term.color}">${count}</span>
+                </div>
+            </div>
+        `;
 			}
 		}
 	};
@@ -572,12 +655,7 @@
 		const updateChartData = async () => {
 			if (!selectedTerms.length) {
 				chartState = {
-					line: {
-						yearly: {
-							data: [],
-							yAxis: chartConfigs.line.yearly.yAxis
-						}
-					},
+					line: { yearly: { data: [], yAxis: chartConfigs.line.yearly.yAxis } },
 					bar: {
 						average: {
 							data: [],
@@ -586,56 +664,23 @@
 						apc: {
 							data: [],
 							yAxis: { ...chartConfigs.line.yearly.yAxis, filter: (_, index) => index > 0 },
-							xAxis: {
-								...chartConfigs.bar.apc.xAxis,
-								rotation: 0
-							}
+							xAxis: { ...chartConfigs.bar.apc.xAxis, rotation: 0 }
 						}
 					},
-					star: {
-						stats: {
-							data: []
-						}
-					},
-					packing: {
-						top: {
-							data: {
-								name: 'root',
-								children: []
-							},
-							colors: {}
-						}
-					},
-					series: {
-						values: [],
-						colors: []
-					}
+					star: { stats: { data: [] } },
+					packing: { top: { data: { name: 'root', children: [] }, colors: {} } },
+					series: { values: [], colors: [] }
 				};
 				return;
 			}
 
 			try {
-				// Transform data for all charts
-				const yearlyData = transformers.line.yearly(selectedTerms, selectedMetric);
-				const averageData = transformers.bar.average(yearlyData, selectedTerms);
-				const statsData = transformers.star.stats(selectedTerms);
-				const apcData = transformers.bar.apc(selectedTerms);
-				const { data: topicsData, colors: topicsColors } = transformers.packing.top(selectedTerms);
+				// Time Series Chart (Line Chart + Average Bar) data and configuration
+				const timeSeriesData = transformers.line.yearly(selectedTerms, selectedMetric);
+				const timeSeriesAverageData = transformers.bar.average(timeSeriesData, selectedTerms);
 
-				topicsData.children = topicsData.children
-					.map((inst) => {
-						inst.children = inst.children
-							.sort((a, b) => b.value - a.value)
-							.slice(0, 10)
-							.map((topic) => topic);
-						return inst;
-					})
-					.filter((inst) => inst.children.length > 0);
-
-
-				// Calculate y-axis configurations
-				const maxValue = Math.max(
-					...yearlyData.flatMap((point) =>
+				const timeSeriesMaxValue = Math.max(
+					...timeSeriesData.flatMap((point) =>
 						Object.values(point).filter(
 							(value) => typeof value === 'number' && value !== point.year
 						)
@@ -643,68 +688,79 @@
 					1
 				);
 
-				const maxOrder = Math.floor(Math.log10(maxValue)) - 1;
-				const max = Math.ceil(maxValue / 10 ** maxOrder) * 10 ** maxOrder;
-				const interval = Math.ceil(max / 4);
-				const yAxisConfig = {
+				const timeSeriesMaxOrder = Math.floor(Math.log10(timeSeriesMaxValue)) - 1;
+				const timeSeriesMax =
+					Math.ceil(timeSeriesMaxValue / 10 ** timeSeriesMaxOrder) * 10 ** timeSeriesMaxOrder;
+				const timeSeriesInterval = Math.ceil(timeSeriesMax / 4);
+
+				const timeSeriesYAxisConfig = {
 					...chartConfigs.line.yearly.yAxis,
-					max,
-					interval
+					max: timeSeriesMax,
+					interval: timeSeriesInterval
 				};
 
-				// Calculate max value for APC chart
-				const maxApcValue = Math.max(
-					...apcData.flatMap((point) => [point.apc_list_sum_usd, point.apc_paid_sum_usd]),
+				// APC Chart data and configuration
+				const apcChartData = transformers.bar.apc(selectedTerms);
+				const apcMaxValue = Math.max(
+					...apcChartData.flatMap((point) => [point.apc_list_sum_usd, point.apc_paid_sum_usd]),
 					1
 				);
+				const apcMaxOrder = Math.floor(Math.log10(apcMaxValue)) - 1;
+				const apcChartMax = Math.ceil(apcMaxValue / 10 ** apcMaxOrder) * 10 ** apcMaxOrder;
+				const apcChartInterval = Math.ceil(apcChartMax / 4);
+				const apcChartXAxisRotation = selectedTerms.length >= 4 ? -25 : 0;
 
-				const apcMaxOrder = Math.floor(Math.log10(maxApcValue)) - 1;
-				const apcMax = Math.ceil(maxApcValue / 10 ** apcMaxOrder) * 10 ** apcMaxOrder;
-				const apcInterval = Math.ceil(apcMax / 4);
+				// Stats Chart (Star Chart) data
+				const statsChartData = transformers.star.stats(selectedTerms);
 
-				// If we have 4 or more terms, apc x-axis labels should be rotated
-				const apcXAxisRotation = selectedTerms.length >= 4 ? -25 : 0;
+				// Topics Chart (Circular Packing) data
+				const { data: topicsChartData, colors: topicsChartColors } =
+					transformers.packing.top(selectedTerms);
 
-				// Update chart state
+				// Series configuration used across charts
+				const seriesValues = selectedTerms.map((term) => term.value);
+				const seriesColors = selectedTerms.map((term) => term.color);
+
+				// Update all chart states
 				chartState = {
 					line: {
 						yearly: {
-							data: yearlyData,
-							yAxis: { ...yAxisConfig, filter: (_, index) => index > 0 }
+							data: timeSeriesData,
+							yAxis: { ...timeSeriesYAxisConfig, filter: (_, index) => index > 0 }
 						}
 					},
 					bar: {
 						average: {
-							data: averageData,
-							yAxis: { ...yAxisConfig, filter: () => false }
+							data: timeSeriesAverageData,
+							yAxis: { ...timeSeriesYAxisConfig, filter: () => false }
 						},
 						apc: {
-							data: apcData,
+							data: apcChartData,
 							yAxis: {
 								...chartConfigs.bar.apc.yAxis,
-								max: apcMax,
-								interval: apcInterval
+								max: apcChartMax,
+								interval: apcChartInterval
 							},
 							xAxis: {
 								...chartConfigs.bar.apc.xAxis,
-								rotation: apcXAxisRotation
+								rotation: apcChartXAxisRotation
 							}
 						}
 					},
 					star: {
 						stats: {
-							data: statsData
+							data: statsChartData
 						}
 					},
 					packing: {
 						top: {
-							data: topicsData,
-							colors: topicsColors
+							data: topicsChartData,
+							colors: topicsChartColors
 						}
 					},
 					series: {
-						values: selectedTerms.map((term) => term.value),
-						colors: selectedTerms.map((term) => term.color)
+						values: seriesValues,
+						colors: seriesColors
 					}
 				};
 			} catch (error) {
@@ -724,9 +780,7 @@
 				<h1 class="text-2xl leading-6 text-gray-900">
 					{getMetricLabel(selectedMetric)} Over Time
 				</h1>
-				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
-				</button>
+				<HelperPopup content={helpTexts.overTime} popupTemplate={helpTemplates.default} />
 			</div>
 			<Select
 				options={[
@@ -783,9 +837,7 @@
 		<LoadingStates {loadingState} />
 		<div class="flex items-center space-x-4 p-4">
 			<h1 class="text-2xl leading-6 text-gray-900">Article Processing Charges</h1>
-			<button class="h-8 w-8 text-gray-500">
-				<MdHelpOutline />
-			</button>
+			<HelperPopup content={helpTexts.apc} popupTemplate={helpTemplates.default} />
 		</div>
 		<div class="w-full px-4 pb-8 pt-12">
 			<!-- APC Chart -->
@@ -815,9 +867,7 @@
 		<LoadingStates {loadingState} />
 		<div class="flex items-center space-x-4 p-4">
 			<h1 class="text-2xl leading-6 text-gray-900">Summary Statistics</h1>
-			<button class="h-8 w-8 text-gray-500">
-				<MdHelpOutline />
-			</button>
+			<HelperPopup content={helpTexts.stats} popupTemplate={helpTemplates.default} />
 		</div>
 		<div class="w-full px-4 pb-8 pt-12">
 			<!-- Stats Chart -->
@@ -843,9 +893,7 @@
 		<LoadingStates {loadingState} />
 		<div class="flex items-center space-x-4 p-4">
 			<h1 class="text-2xl leading-6 text-gray-900">Topics Distribution</h1>
-			<button class="h-8 w-8 text-gray-500">
-				<MdHelpOutline />
-			</button>
+			<HelperPopup content={helpTexts.topics} popupTemplate={helpTemplates.default} />
 		</div>
 		<div class="w-full px-4 pb-8 pt-12">
 			<div class="h-128 w-full">

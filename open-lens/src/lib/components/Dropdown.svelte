@@ -205,7 +205,7 @@
 {#if isOpen}
 	<div
 		bind:this={dropdownEl}
-		use:clickOutside={onClose}
+		use:clickOutside={{ callback: onClose }}
 		transition:scale={{ duration: 200, start: 0.95 }}
 		class="absolute z-50 flex flex-col border border-neutral-200 bg-white shadow-md outline-none {className}"
 		style={buildDropdownStyle()}

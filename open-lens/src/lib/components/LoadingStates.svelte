@@ -9,11 +9,11 @@
 </script>
 
 {#if loadingState.isLoading}
-	<div class="z-100 absolute inset-0 flex items-center justify-center bg-white/50">
+	<div class="absolute inset-0 z-100 flex items-center justify-center bg-white/50">
 		<LoadingSpinner size={fullScreen ? 'lg' : 'md'} />
 	</div>
 {:else if loadingState.error}
-	<div class="z-100 absolute inset-0 flex items-center justify-center bg-white/50">
+	<div class="absolute inset-0 z-100 flex items-center justify-center bg-white/50">
 		<div class="text-center">
 			<h2 class="text-xl font-medium text-red-600">Error</h2>
 			<p class="mt-2 text-gray-600">{loadingState.error}</p>
