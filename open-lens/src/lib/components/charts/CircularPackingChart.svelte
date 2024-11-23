@@ -25,7 +25,11 @@
 				1: { strokeWidth: 2, strokeOpacity: 1, fillOpacity: 0.2 },
 				2: { strokeWidth: 1.5, strokeOpacity: 0.8, fillOpacity: 0.3 }
 			},
-			showHoverEffects: true
+			showHoverEffects: true,
+			hoverStyles: {
+				strokeOpacity: 0.2,
+				fillOpacity: 0.1
+			}
 		}
 	);
 
@@ -95,7 +99,7 @@
 	}
 
 	function calculateRadius(node: d3.HierarchyNode<HierarchyNode>): number {
-		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 900;
+		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 600;
 	}
 
 	function isPointInCircle(px: number, py: number, cx: number, cy: number, r: number): boolean {
@@ -120,10 +124,14 @@
 		svg.selectAll('circle').each(function (d: any) {
 			const node = d as d3.HierarchyNode<HierarchyNode>;
 			const isHighlighted = pointer.show && pointer.highlightedNodes.has(node);
-			const style = circleConfig.levelStyle?.[node.depth] ?? {
+			const defaultStyle = circleConfig.levelStyle?.[node.depth] ?? {
 				strokeWidth: 2,
 				strokeOpacity: 1,
 				fillOpacity: 0.2
+			};
+			const hoverStyle = circleConfig.hoverStyles ?? {
+				strokeOpacity: 0.2,
+				fillOpacity: 0.1
 			};
 
 			d3.select(this)
@@ -131,11 +139,19 @@
 				.style('stroke', getNodeColor(node))
 				.style(
 					'fill-opacity',
-					pointer.show ? (isHighlighted ? style.fillOpacity : 0.1) : style.fillOpacity
+					pointer.show
+						? isHighlighted
+							? defaultStyle.fillOpacity
+							: hoverStyle.fillOpacity
+						: defaultStyle.fillOpacity
 				)
 				.style(
 					'stroke-opacity',
-					pointer.show ? (isHighlighted ? style.strokeOpacity : 0.2) : style.strokeOpacity
+					pointer.show
+						? isHighlighted
+							? defaultStyle.strokeOpacity
+							: hoverStyle.strokeOpacity
+						: defaultStyle.strokeOpacity
 				);
 		});
 

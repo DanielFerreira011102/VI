@@ -132,11 +132,20 @@ type BarChartProps = {
 	seriesConfig?: BarChartSeriesConfig;
 };
 
-// Star Chart Types (existing code...)
+// Star Chart Types
 type StarChartDataPoint = {
 	label: string;
 	color: string;
 	values: Record<string, number>;
+};
+
+type StarChartPointerState = {
+	show: boolean;
+	x: number;
+	y: number;
+	data: StarChartDataPoint | null;
+	index: number;
+	anchorPoints: Position[];
 };
 
 type StarChartAxis = {
@@ -177,6 +186,11 @@ type StarChartSeriesConfig = {
 	showPoints?: boolean;
 	fill?: boolean;
 	fillOpacity?: number;
+	showHoverEffects?: boolean;
+	hoverStyle?: {
+		fillOpacity?: number;
+		lineOpacity?: number;
+	};
 };
 
 type StarChartProps = {
@@ -186,6 +200,7 @@ type StarChartProps = {
 	gridConfig?: StarChartGridConfig;
 	axisConfig?: StarChartAxisConfig;
 	seriesConfig?: StarChartSeriesConfig;
+	popoverTemplate?: (item: StarChartDataPoint, index: number) => string;
 };
 
 // Pie Chart Types
@@ -284,6 +299,11 @@ type CircularPackingProps = {
 		};
 		/** Whether to show hover effects */
 		showHoverEffects?: boolean;
+		/** Style for hover effects */
+		hoverStyle?: {
+			fillOpacity?: number;
+			strokeOpacity?: number;
+		};
 	};
 	/** Label configuration */
 	labelConfig?: {
@@ -322,6 +342,7 @@ export type {
 	BarChartProps,
 	// Star Chart exports
 	StarChartDataPoint,
+	StarChartPointerState,
 	StarChartAxis,
 	StarChartGridConfig,
 	StarChartAxisConfig,

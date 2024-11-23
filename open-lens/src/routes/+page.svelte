@@ -15,6 +15,7 @@
 	import InstitutionCard from '$lib/components/InstitutionCard.svelte';
 	import FilterBuilder from '$lib/components/FilterBuilder.svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
+    import CompareBar from '$lib/components/CompareBar.svelte';
 
 	let institutions = $state<Institution[]>([]);
 	let totalCount = $state(0);
@@ -279,3 +280,4 @@
 		/>
 	{/if}
 </div>
+<CompareBar />

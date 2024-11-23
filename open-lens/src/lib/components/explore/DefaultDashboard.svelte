@@ -5,7 +5,8 @@
 		BarChartDataPoint,
 		StarChartDataPoint,
 		YAxisConfig,
-		AxisConfig
+		AxisConfig,
+		HierarchyNode
 	} from '$lib/types/chart';
 	import type { LoadingState } from '$lib/types/loading';
 
@@ -197,7 +198,7 @@
 				axes: [
 					{
 						key: 'works_count',
-						label: 'Works Count',
+						label: 'Works',
 						minValue: 0,
 						gridConfig: {
 							fontSize: 14,
@@ -219,7 +220,7 @@
 					},
 					{
 						key: 'mean_citedness',
-						label: '2yr Mean Citedness',
+						label: 'Impact Factor',
 						minValue: 0,
 						gridConfig: {
 							filter: () => false
@@ -472,7 +473,7 @@
                 ${selectedTerms
 									.map(
 										(term) => `
-                    <div class="flex items-center justify-between h-4 mt-2">
+                    <div class="flex items-center justify-between mt-2">
                         <span class="truncate">${term.value}</span>
                         <span class="ml-4" style="color: ${term.color}">${(item[term.value] ?? 0).toLocaleString()}</span>
                     </div>
@@ -491,7 +492,7 @@
 				return `
                 <div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
                     <div class="pb-2 font-semibold">Average</div>
-                    <div class="flex items-center justify-between h-4 mt-2">
+                    <div class="flex items-center justify-between mt-2">
                         <span class="truncate">${series}</span>
                         <span class="ml-4" style="color: ${term.color}">${(item[series] ?? 0).toLocaleString()}</span>
                     </div>
@@ -505,7 +506,7 @@
 				return `
                 <div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
                     <div class="pb-2 font-semibold">${term.value}</div>
-                    <div class="flex items-center justify-between h-4 mt-2">
+                    <div class="flex items-center justify-between mt-2">
                         <span class="truncate">${isListPrice ? 'List Price' : 'Paid Amount'}</span>
                         <span class="ml-4" style="color: ${term.color}">
                             $${(item[series] || 0).toLocaleString()}
@@ -513,6 +514,56 @@
                     </div>
                 </div>
             `;
+			}
+		},
+		star: {
+			stats: (item: StarChartDataPoint) => {
+				const term = selectedTerms.find((term) => term.value === item.label);
+				return `
+				<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-72 z-50">
+					<div class="pb-2 font-semibold">${item.label}</div>
+					<div class="flex items-center justify-between mt-2">
+						<span class="truncate">Works</span>
+						<span class="ml-4" style="color: ${term.color}">${item.values.works_count}</span>
+					</div>
+					<div class="flex items center justify-between mt-2">
+						<span class="truncate">Citations</span>
+						<span class="ml-4" style="color: ${term.color}">${item.values.cited_by_count}</span>
+					</div>
+					<div class="flex items center justify-between mt-2">
+						<span class="truncate">Impact Factor</span>
+						<span class="ml-4" style="color: ${term.color}">${item.values.mean_citedness.toFixed(2)}</span>
+					</div>
+					<div class="flex items center justify-between mt-2">
+						<span class="truncate">H-Index</span>
+						<span class="ml-4" style="color: ${term.color}">${item.values.h_index}</span>
+					</div>
+					<div class="flex items center justify-between mt-2">
+						<span class="truncate">i10-Index</span>
+						<span class="ml-4" style="color: ${term.color}">${item.values.i10_index}</span>
+					</div>
+				</div>
+			`;
+			}
+		},
+		packing: {
+			top: (node: d3.HierarchyNode<HierarchyNode>) => {
+				const parentName =
+					node.parent?.data.name === 'root' ? node.data.name : node.parent?.data.name;
+				const depth = node.depth;
+				const name = node.data.name;
+				const count = node.value;
+				// get color from the term color
+				const term = selectedTerms.find((term) => term.data.display_name === parentName);
+				return `
+				<div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-96 z-50">
+					<div class="pb-2 font-semibold">${name}</div>
+					<div class="flex items center justify-between mt-2">
+						<span class="truncate">Works</span>
+						<span class="ml-4" style="color: ${term.color}">${count}</span>
+					</div>
+				</div>
+			`;
 			}
 		}
 	};
@@ -570,6 +621,17 @@
 				const statsData = transformers.star.stats(selectedTerms);
 				const apcData = transformers.bar.apc(selectedTerms);
 				const { data: topicsData, colors: topicsColors } = transformers.packing.top(selectedTerms);
+
+				topicsData.children = topicsData.children
+					.map((inst) => {
+						inst.children = inst.children
+							.sort((a, b) => b.value - a.value)
+							.slice(0, 10)
+							.map((topic) => topic);
+						return inst;
+					})
+					.filter((inst) => inst.children.length > 0);
+
 
 				// Calculate y-axis configurations
 				const maxValue = Math.max(
@@ -738,6 +800,12 @@
 						yAxisConfig={chartState.bar.apc.yAxis}
 						popupTemplate={templates.bar.apc}
 						seriesConfig={chartConfigs.bar.apc.series}
+						margins={{
+							left: 70,
+							right: 20,
+							top: 20,
+							bottom: 100
+						}}
 					/>
 				{/if}
 			</div>
@@ -762,6 +830,7 @@
 						axisConfig={chartConfigs.star.stats.axis}
 						seriesConfig={chartConfigs.star.stats.series}
 						margins={chartConfigs.star.stats.margins}
+						popupTemplate={templates.star.stats}
 					/>
 				{/if}
 			</div>
@@ -773,7 +842,7 @@
 	<div class="relative w-full rounded-2xl bg-white p-4">
 		<LoadingStates {loadingState} />
 		<div class="flex items-center space-x-4 p-4">
-			<h1 class="text-2xl leading-6 text-gray-900">Institution Topics Distribution</h1>
+			<h1 class="text-2xl leading-6 text-gray-900">Topics Distribution</h1>
 			<button class="h-8 w-8 text-gray-500">
 				<MdHelpOutline />
 			</button>
@@ -787,6 +856,7 @@
 						colors={chartState.packing.top.colors}
 						circleConfig={chartConfigs.packing.top.circleConfig}
 						labelConfig={chartConfigs.packing.top.labelConfig}
+						popupTemplate={templates.packing.top}
 					/>
 				{/if}
 			</div>
