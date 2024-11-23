@@ -95,7 +95,7 @@
 	}
 
 	function calculateRadius(node: d3.HierarchyNode<HierarchyNode>): number {
-		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 1000;
+		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 900;
 	}
 
 	function isPointInCircle(px: number, py: number, cx: number, cy: number, r: number): boolean {
@@ -187,7 +187,6 @@
 
 		const container = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-		// Process data for force layout (depth 1 nodes)
 		const hierarchy = d3.hierarchy(data).sum((d) => d.value || 1);
 
 		const depth1Nodes = hierarchy.children || [];
@@ -195,17 +194,13 @@
 			node.r = calculateRadius(node);
 		});
 
-		// Initialize nodes array with all depth 1 nodes
 		nodes = [...depth1Nodes];
 
-		// Initial packing of children
 		depth1Nodes.forEach((node) => {
 			packChildren(node);
-			// Add all descendants to nodes array
 			nodes = nodes.concat(node.descendants().slice(1));
 		});
 
-		// Create force simulation for depth 1 nodes only
 		if (simulation) simulation.stop();
 
 		simulation = d3
@@ -218,77 +213,113 @@
 			.force('y', d3.forceY(innerHeight / 2).strength(0.1))
 			.force('box', boxingForce())
 			.on('tick', () => {
-				// After each tick, repack children within their parent circles
 				depth1Nodes.forEach((node) => {
 					packChildren(node);
 				});
-				// Update all nodes positions
-				updateNodes();
+				updateNodes(depth1Nodes, container);
 				updatePositions(container);
 			});
 
 		simulation.tick(300);
 
-		function updateNodes() {
-			// Update nodes array with current state
-			nodes = [...depth1Nodes];
-			depth1Nodes.forEach((node) => {
-				nodes = nodes.concat(node.descendants().slice(1));
-			});
+		updateNodes(depth1Nodes, container);
+	}
 
-			const allNodes = container.selectAll('.node').data(nodes, (d: any) => d.data.name);
+	function fitText(text: d3.Selection<SVGTextElement, any, any, any>, radius: number) {
+		const node = text.node();
+		if (!node) return;
 
-			// Remove old nodes
-			allNodes.exit().remove();
+		const originalText = text.text();
+		const maxWidth = radius * 1.8; // Diameter minus some padding
 
-			// Add new nodes
-			const newNodes = allNodes.enter().append('g').attr('class', 'node');
-
-			// Add circles to new nodes
-			newNodes.append('circle');
-
-			// Add labels to new nodes
-			newNodes.append('text');
-
-			// Update all nodes
-			const allNodesWithEnter = allNodes.merge(newNodes as any);
-
-			allNodesWithEnter.each(function (node: any) {
-				const group = d3.select(this);
-				const style = circleConfig.levelStyle?.[node.depth] ?? {
-					strokeWidth: 2,
-					strokeOpacity: 1,
-					fillOpacity: 0.2
-				};
-
-				// Update circle
-				group
-					.select('circle')
-					.attr('r', node.r)
-					.attr('fill', getNodeColor(node))
-					.attr('fill-opacity', style.fillOpacity)
-					.attr('stroke', getNodeColor(node))
-					.attr('stroke-width', style.strokeWidth)
-					.attr('stroke-opacity', style.strokeOpacity);
-
-				// Update label
-				const label = group.select('text');
-				if (labelConfig.show && node.r > labelConfig.minRadiusToShow && labelConfig.filter(node)) {
-					label
-						.attr('text-anchor', 'middle')
-						.attr('dominant-baseline', 'middle')
-						.attr('font-size', labelConfig.fontSize)
-						.attr('font-weight', labelConfig.fontWeight)
-						.attr('fill', labelConfig.color)
-						.text(node.data.name);
-				} else {
-					label.text('');
-				}
-			});
+		// If text is too small, don't show it at all
+		if (radius < labelConfig.minRadiusToShow) {
+			text.text('');
+			return;
 		}
 
-		// Initial update
-		updateNodes();
+		// Get the computed text length
+		const textLength = node.getComputedTextLength();
+
+		if (textLength > maxWidth) {
+			// If text is too long, try to abbreviate it
+			let abbreviated = originalText;
+			let ellipsis = '...';
+
+			while (abbreviated.length > 0) {
+				text.text(abbreviated + ellipsis);
+				if (node.getComputedTextLength() <= maxWidth) {
+					break;
+				}
+				abbreviated = abbreviated.slice(0, -1);
+			}
+
+			// If even a single character plus ellipsis is too long, show nothing
+			if (abbreviated.length === 0) {
+				text.text('');
+			}
+		}
+	}
+
+	function updateNodes(
+		depth1Nodes: d3.HierarchyNode<HierarchyNode>[] = [],
+		container: d3.Selection<SVGGElement, unknown, null, undefined>
+	) {
+		nodes = [...depth1Nodes];
+		depth1Nodes.forEach((node) => {
+			nodes = nodes.concat(node.descendants().slice(1));
+		});
+
+		const allNodes = container.selectAll('.node').data(nodes, (d: any) => d.data.name);
+
+		allNodes.exit().remove();
+
+		const newNodes = allNodes.enter().append('g').attr('class', 'node');
+
+		newNodes.append('circle');
+
+		// Add text without clipPath
+		newNodes
+			.append('text')
+			.attr('text-anchor', 'middle')
+			.attr('dominant-baseline', 'middle')
+			.style('pointer-events', 'none');
+
+		const allNodesWithEnter = allNodes.merge(newNodes as any);
+
+		allNodesWithEnter.each(function (node: any) {
+			const group = d3.select(this);
+			const style = circleConfig.levelStyle?.[node.depth] ?? {
+				strokeWidth: 2,
+				strokeOpacity: 1,
+				fillOpacity: 0.2
+			};
+
+			// Update circle
+			group
+				.select('circle')
+				.attr('r', node.r)
+				.attr('fill', getNodeColor(node))
+				.attr('fill-opacity', style.fillOpacity)
+				.attr('stroke', getNodeColor(node))
+				.attr('stroke-width', style.strokeWidth)
+				.attr('stroke-opacity', style.strokeOpacity);
+
+			// Update label
+			const label = group.select('text');
+			if (labelConfig.show && labelConfig.filter(node)) {
+				label
+					.attr('font-size', labelConfig.fontSize)
+					.attr('font-weight', labelConfig.fontWeight)
+					.attr('fill', labelConfig.color)
+					.text(node.data.name);
+
+				// Apply text fitting
+				fitText(label, node.r);
+			} else {
+				label.text('');
+			}
+		});
 	}
 
 	function boxingForce() {
@@ -298,7 +329,6 @@
 				const x = (node as any).x;
 				const y = (node as any).y;
 
-				// Keep circles within bounds
 				if (x - r < 0) (node as any).x = r;
 				if (x + r > innerWidth) (node as any).x = innerWidth - r;
 				if (y - r < 0) (node as any).y = r;
@@ -311,15 +341,33 @@
 		container.selectAll('.node').attr('transform', (d: any) => `translate(${d.x},${d.y})`);
 	}
 
-	function calculatePopupPosition(x: number, y: number, dimensions: Dimensions): Position {
-		if (!chart) return { x: 0, y: 0 };
+	function calculatePopupPosition(
+		node: d3.HierarchyNode<HierarchyNode>,
+		dimensions: Dimensions
+	): Position {
+		if (!chart || !svgRef) return { x: 0, y: 0 };
 
 		const padding = 16;
-		let posX = x + padding;
-		let posY = y - dimensions.height / 2;
+		const rect = chart.getBoundingClientRect();
+		const svgPoint = svgRef.createSVGPoint();
 
+		// Get circle center position
+		svgPoint.x = (node.x || 0) + margin.left;
+		svgPoint.y = (node.y || 0) + margin.top;
+
+		const container = svgRef.firstChild as SVGGElement;
+		const matrix = container?.getCTM();
+		if (!matrix) return { x: 0, y: 0 };
+
+		// Transform to screen coordinates
+		const transformedPoint = svgPoint.matrixTransform(matrix);
+
+		let posX = transformedPoint.x + node.r + padding;
+		let posY = transformedPoint.y - dimensions.height / 2;
+
+		// Adjust if popup would go outside bounds
 		if (posX + dimensions.width > actualWidth - margin.right) {
-			posX = x - dimensions.width - padding;
+			posX = transformedPoint.x - node.r - dimensions.width - padding;
 		}
 
 		if (posY < margin.top + padding) {
@@ -362,8 +410,8 @@
 			hoveredNode.descendants().forEach((node) => children.add(node));
 
 			pointer = {
-				x: event.clientX - rect.left,
-				y: event.clientY - rect.top,
+				x: hoveredNode.x || 0,
+				y: hoveredNode.y || 0,
 				show: true,
 				data: hoveredNode,
 				depth: hoveredNode.depth,
@@ -413,7 +461,9 @@
 		}
 	});
 
-	let popupPosition = $derived(calculatePopupPosition(pointer.x, pointer.y, popupDimensions));
+	let popupPosition = $derived(
+		pointer.data ? calculatePopupPosition(pointer.data, popupDimensions) : { x: 0, y: 0 }
+	);
 </script>
 
 <div
