@@ -2,7 +2,6 @@
 	import Select from '$lib/components/Select.svelte';
 	import BarChart from '$lib/components/charts/BarChart.svelte';
 	import PieChart from '$lib/components/charts/PieChart.svelte';
-	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import type { PageData } from './$types';
 	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
 

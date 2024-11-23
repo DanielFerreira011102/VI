@@ -94,14 +94,13 @@ function createTermStore() {
 		initialize: async (queryString: string, forceReset: boolean = false) => {
 			loadingStore.startLoading();
 			try {
-
 				// If forceReset is true, reset to initial state and return early
 				if (forceReset) {
 					set([createInitialTerm()]);
 					updateURL([createInitialTerm()]); // Clear URL parameters
 					return;
 				}
-				
+
 				const params = new URLSearchParams(queryString);
 				const queryParam = params.get('q');
 				const terms = queryParam

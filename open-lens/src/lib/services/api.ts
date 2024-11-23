@@ -102,6 +102,7 @@ export async function fetchInstitutionsParallel(
 					`https://api.openalex.org/institutions?search=${encodeURIComponent(term)}&select=id,display_name,relevance_score,works_count,cited_by_count,summary_stats,counts_by_year,topics`
 				);
 				const data = await response.json();
+				console.log(data);
 				const institution = data.results?.[0] || null;
 				if (institution) institutionCache.set(term, institution);
 				results.set(term, institution);

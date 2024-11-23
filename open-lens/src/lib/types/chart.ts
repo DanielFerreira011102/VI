@@ -237,6 +237,73 @@ type PieChartProps = {
 	seriesConfig?: PieChartSeriesConfig;
 };
 
+// Types for the circular packing chart
+type HierarchyNode = {
+	name: string;
+	value?: number;
+	color?: string;
+	children?: HierarchyNode[];
+	x?: number;
+	y?: number;
+	r?: number;
+};
+
+type CircularPackingPointerState = {
+	x: number;
+	y: number;
+	show: boolean;
+	data: d3.HierarchyNode<HierarchyNode> | null;
+	depth: number;
+	highlightedNodes: Set<d3.HierarchyNode<HierarchyNode>>;
+};
+
+type CircularPackingProps = {
+	/** The hierarchical data to be displayed */
+	data?: HierarchyNode;
+	/** Colors for different hierarchy levels */
+	colors?: {
+		[groupName: string]: {
+			[depth: number]: string;
+		};
+	};
+	/** Function to generate popup content */
+	popupTemplate?: (node: d3.HierarchyNode<HierarchyNode>) => string;
+	/** Chart margins */
+	margins?: Partial<Margin>;
+	/** Configuration for circles */
+	circleConfig?: {
+		/** Padding between circles */
+		padding?: number;
+		/** Style for different levels */
+		levelStyle?: {
+			[key: number]: {
+				strokeWidth?: number;
+				strokeOpacity?: number;
+				fillOpacity?: number;
+			};
+		};
+		/** Whether to show hover effects */
+		showHoverEffects?: boolean;
+	};
+	/** Label configuration */
+	labelConfig?: {
+		/** Show labels */
+		show?: boolean;
+		/** Font size */
+		fontSize?: number;
+		/** Font size multiplier for group labels */
+		groupFontSizeMultiplier?: number;
+		/** Font weight */
+		fontWeight?: number | string;
+		/** Label color */
+		color?: string;
+		/** Min circle radius to show label */
+		minRadiusToShow?: number;
+		/** Filter function for labels */
+		filter?: (node: d3.HierarchyNode<HierarchyNode>) => boolean;
+	};
+};
+
 export type {
 	Margin,
 	BaseAxisConfig as AxisConfig,
@@ -264,5 +331,9 @@ export type {
 	PieChartDataPoint,
 	PieChartPointerState,
 	PieChartSeriesConfig,
-	PieChartProps
+	PieChartProps,
+	// Circular Packing Chart exports
+	HierarchyNode,
+	CircularPackingPointerState,
+	CircularPackingProps
 };

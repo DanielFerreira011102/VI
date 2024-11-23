@@ -15,6 +15,7 @@
 	import Select from '$lib/components/Select.svelte';
 	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
 	import LoadingStates from '$lib/components/LoadingStates.svelte';
+	import CircularPackingChart from '../charts/CircularPackingChart.svelte';
 
 	let { selectedTerms } = $props<{ selectedTerms: Term[] }>();
 
@@ -255,6 +256,26 @@
 					left: 40
 				}
 			}
+		},
+		packing: {
+			top: {
+				circleConfig: {
+					padding: 10,
+					levelStyle: {
+						1: { strokeWidth: 2, strokeOpacity: 1, fillOpacity: 0.2 },
+						2: { strokeWidth: 1.5, strokeOpacity: 0.8, fillOpacity: 0.3 }
+					},
+					showHoverEffects: true
+				},
+				labelConfig: {
+					show: true,
+					fontSize: 13,
+					fontWeight: 500,
+					color: '#333333',
+					minRadiusToShow: 20,
+					filter: (node: any) => node.depth > 1
+				}
+			}
 		}
 	};
 
@@ -280,6 +301,21 @@
 		star: {
 			stats: {
 				data: StarChartDataPoint[];
+			};
+		};
+		packing: {
+			top: {
+				data: {
+					name: string;
+					children: Array<{
+						name: string;
+						children: Array<{
+							name: string;
+							value: number;
+						}>;
+					}>;
+				};
+				colors: Record<string, { 1: string; 2: string }>;
 			};
 		};
 		series: {
@@ -313,6 +349,15 @@
 		star: {
 			stats: {
 				data: []
+			}
+		},
+		packing: {
+			top: {
+				data: {
+					name: 'root',
+					children: []
+				},
+				colors: {}
 			}
 		},
 		series: {
@@ -380,6 +425,40 @@
 						i10_index: term.data?.summary_stats?.i10_index ?? 0
 					}
 				}));
+			}
+		},
+		packing: {
+			top: (terms: Term[]) => {
+				const data = {
+					name: 'root',
+					children: terms
+						.map((term) => {
+							const institution = term.data as Institution;
+							return {
+								name: institution.display_name,
+								children:
+									institution.topics?.map((topic) => ({
+										name: topic.display_name,
+										value: topic.count
+									})) || []
+							};
+						})
+						.filter((inst) => inst.children.length > 0)
+				};
+
+				const colors = Object.fromEntries(
+					terms
+						.filter((term) => term.data?.topics?.length)
+						.map((term) => [
+							term.data.display_name,
+							{
+								1: term.color + '40', // 25% opacity for institution level
+								2: term.color // Full opacity for topics
+							}
+						])
+				);
+
+				return { data, colors };
 			}
 		}
 	};
@@ -467,6 +546,15 @@
 							data: []
 						}
 					},
+					packing: {
+						top: {
+							data: {
+								name: 'root',
+								children: []
+							},
+							colors: {}
+						}
+					},
 					series: {
 						values: [],
 						colors: []
@@ -481,6 +569,7 @@
 				const averageData = transformers.bar.average(yearlyData, selectedTerms);
 				const statsData = transformers.star.stats(selectedTerms);
 				const apcData = transformers.bar.apc(selectedTerms);
+				const { data: topicsData, colors: topicsColors } = transformers.packing.top(selectedTerms);
 
 				// Calculate y-axis configurations
 				const maxValue = Math.max(
@@ -543,6 +632,12 @@
 					star: {
 						stats: {
 							data: statsData
+						}
+					},
+					packing: {
+						top: {
+							data: topicsData,
+							colors: topicsColors
 						}
 					},
 					series: {
@@ -643,11 +738,6 @@
 						yAxisConfig={chartState.bar.apc.yAxis}
 						popupTemplate={templates.bar.apc}
 						seriesConfig={chartConfigs.bar.apc.series}
-						margins={{
-							bottom: 100,
-							right: 20,
-							left: 80
-						}}
 					/>
 				{/if}
 			</div>
@@ -682,43 +772,21 @@
 <div class="container mx-auto flex items-center justify-between p-4">
 	<div class="relative w-full rounded-2xl bg-white p-4">
 		<LoadingStates {loadingState} />
-		<div class="flex items-center justify-between p-4">
-			<div class="flex items-center space-x-4">
-				<h1 class="text-2xl leading-6 text-gray-900">
-					{getMetricLabel(selectedMetric)} Over Time
-				</h1>
-				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
-				</button>
-			</div>
-			<Select
-				options={[
-					{ value: 'works', label: 'Works' },
-					{ value: 'citations', label: 'Citations' },
-					{ value: 'avgCitations', label: 'Average Citations' }
-				]}
-				autoFocusDropdown={true}
-				onChange={(option) => (selectedMetric = option.value as MetricType)}
-				buttonClassName="min-w-48 h-12 p-4 rounded-lg leading-6"
-				dropdownClassName="min-w-48"
-				dropdownPadding="1rem"
-				dropdownOptionHeight="3.5rem"
-				dropdownTop="-0.5rem"
-			/>
+		<div class="flex items-center space-x-4 p-4">
+			<h1 class="text-2xl leading-6 text-gray-900">Institution Topics Distribution</h1>
+			<button class="h-8 w-8 text-gray-500">
+				<MdHelpOutline />
+			</button>
 		</div>
 		<div class="w-full px-4 pb-8 pt-12">
-			<!-- Bottom Line Chart -->
-			<div class="h-80 w-full">
+			<div class="h-128 w-full">
 				{#if !loadingState.isLoading}
-					<LineChart
-						data={chartState.line.yearly.data}
-						series={chartState.series.values}
-						colors={chartState.series.colors}
-						popupTemplate={templates.line.yearly}
-						xAxisLabel="year"
-						xAxisConfig={chartConfigs.line.yearly.xAxis}
-						yAxisConfig={chartState.line.yearly.yAxis}
-						seriesConfig={chartConfigs.line.yearly.series}
+					<!--divide all count values by 100 -->
+					<CircularPackingChart
+						data={chartState.packing.top.data}
+						colors={chartState.packing.top.colors}
+						circleConfig={chartConfigs.packing.top.circleConfig}
+						labelConfig={chartConfigs.packing.top.labelConfig}
 					/>
 				{/if}
 			</div>
