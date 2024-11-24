@@ -37,6 +37,7 @@
 		props.labelConfig ?? {
 			show: true,
 			fontSize: 13,
+			autoFitText: true,
 			groupFontSizeMultiplier: 1.2,
 			fontWeight: 400,
 			color: '#333333',
@@ -105,7 +106,7 @@
 	}
 
 	function calculateRadius(node: d3.HierarchyNode<HierarchyNode>): number {
-		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 900;
+		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 1000;
 	}
 
 	function isPointInCircle(px: number, py: number, cx: number, cy: number, r: number): boolean {
@@ -221,7 +222,6 @@
 			node.r = calculateRadius(node);
 		});
 
-		// Build complete node collection once
 		nodes = [...depth1Nodes];
 		depth1Nodes.forEach((node) => {
 			packChildren(node);
@@ -229,6 +229,9 @@
 		});
 
 		if (simulation) simulation.stop();
+
+		// First render nodes without rectangles
+		updateNodes(nodes, container);
 
 		simulation = d3
 			.forceSimulation(depth1Nodes)
@@ -240,7 +243,6 @@
 			.force('y', d3.forceY(innerHeight / 2).strength(0.1))
 			.force('box', boxingForce())
 			.on('tick', () => {
-				// Only update positions during simulation
 				depth1Nodes.forEach((node) => {
 					packChildren(node);
 				});
@@ -248,17 +250,14 @@
 			});
 
 		simulation.tick(300);
-
-		// Final update after simulation is complete
-		updateNodes(nodes, container);
 	}
 
+	// Add a flag to control whether to show rectangles
 	function updateNodes(
 		nodes: d3.HierarchyNode<HierarchyNode>[] = [],
 		container: d3.Selection<SVGGElement, unknown, null, undefined>
 	) {
 		const allNodes = container.selectAll('.node').data(nodes, (d: any) => d.data.name);
-
 		allNodes.exit().remove();
 
 		const newNodes = allNodes.enter().append('g').attr('class', 'node');
@@ -290,56 +289,153 @@
 				.attr('stroke-width', style.strokeWidth)
 				.attr('stroke-opacity', style.strokeOpacity);
 
-			// Update label
-			const label = group.select('text');
-			if (labelConfig.show && labelConfig.filter(node) && node.r >= labelConfig.minRadiusToShow) {
-				label
-					.attr('font-size', labelConfig.fontSize)
-					.attr('font-weight', labelConfig.fontWeight)
-					.attr('fill', labelConfig.color)
-					.text(node.data.name);
+			// Find maximum rectangle for text
+			const maxRect = findMaximumRectangle(node);
 
-				fitText(label, node.r);
-			} else {
-				label.text('');
+			// Update debug rectangle
+			if (maxRect) {
+				// Update label using the found rectangle
+				const label = group.select('text');
+				if (labelConfig.show && labelConfig.filter(node) && node.r >= labelConfig.minRadiusToShow) {
+					label.attr('x', maxRect.x + maxRect.width / 2).attr('y', maxRect.y + maxRect.height / 2);
+
+					if (labelConfig.autoFitText) {
+						let fontSize = 100;
+						const minFontSize = 4;
+						label.text(node.data.name);
+
+						while (fontSize > minFontSize) {
+							label.attr('font-size', fontSize);
+							const bbox = label.node()?.getBBox();
+							if (
+								bbox &&
+								bbox.width <= maxRect.width * 0.95 &&
+								bbox.height <= maxRect.height * 0.95
+							) {
+								break;
+							}
+							fontSize -= 2;
+						}
+
+						if (fontSize <= minFontSize) {
+							let truncated = node.data.name;
+							label.attr('font-size', minFontSize);
+							while (truncated.length > 3) {
+								truncated = truncated.slice(0, -1);
+								label.text(truncated + '...');
+								const bbox = label.node()?.getBBox();
+								if (
+									bbox &&
+									bbox.width <= maxRect.width * 0.95 &&
+									bbox.height <= maxRect.height * 0.95
+								) {
+									break;
+								}
+							}
+						}
+					} else {
+						label.attr('font-size', labelConfig.fontSize).text(node.data.name);
+
+						const bbox = label.node()?.getBBox();
+						if (bbox && (bbox.width > maxRect.width * 0.95 || bbox.height > maxRect.height * 0.95)) {
+							let truncated = node.data.name;
+							while (truncated.length > 3) {
+								truncated = truncated.slice(0, -1);
+								label.text(truncated + '...');
+								const bbox = label.node()?.getBBox();
+								if (
+									bbox &&
+									bbox.width <= maxRect.width * 0.95 &&
+									bbox.height <= maxRect.height * 0.95
+								) {
+									break;
+								}
+							}
+						}
+					}
+				} else {
+					label.text('');
+				}
 			}
 		});
 	}
 
-	function fitText(text: d3.Selection<SVGTextElement, any, any, any>, radius: number) {
-		const node = text.node();
-		if (!node) return;
-
-		const originalText = text.text();
-		const maxWidth = radius * 1.8; // Diameter minus some padding
-
-		// If text is too small, don't show it at all
-		if (radius < labelConfig.minRadiusToShow) {
-			text.text('');
-			return;
+	// 1. Add the rectangle finding function
+	function findMaximumRectangle(node: d3.HierarchyNode<HierarchyNode>) {
+		if (!node.children || node.children.length === 0) {
+			const r = node.r || 0;
+			return {
+				x: -r * 0.8,
+				y: -r * 0.4,
+				width: r * 1.6,
+				height: r * 0.8
+			};
 		}
 
-		// Get the computed text length
-		const textLength = node.getComputedTextLength();
+		const mainRadius = node.r || 0;
+		const gridSize = 30;
+		const step = (2 * mainRadius) / gridSize;
+		let maxArea = 0;
+		let bestRect = null;
 
-		if (textLength > maxWidth) {
-			// If text is too long, try to abbreviate it
-			let abbreviated = originalText;
-			let ellipsis = '...';
+		// Convert child circles to relative coordinates
+		const obstacles = node.children.map((child) => ({
+			x: (child.x || 0) - (node.x || 0),
+			y: (child.y || 0) - (node.y || 0),
+			radius: child.r || 0
+		}));
 
-			while (abbreviated.length > 0) {
-				text.text(abbreviated + ellipsis);
-				if (node.getComputedTextLength() <= maxWidth) {
-					break;
+		function isRectangleValid(x: number, y: number, width: number, height: number) {
+			// Width must be greater than height
+			if (width <= height) {
+				return false;
+			}
+
+			// Check if rectangle fits inside main circle
+			const corners = [
+				[x, y],
+				[x + width, y],
+				[x, y + height],
+				[x + width, y + height]
+			];
+
+			for (const [cx, cy] of corners) {
+				if (Math.sqrt(cx * cx + cy * cy) > mainRadius) {
+					return false;
 				}
-				abbreviated = abbreviated.slice(0, -1);
 			}
 
-			// If even a single character plus ellipsis is too long, show nothing
-			if (abbreviated.length === 0) {
-				text.text('');
+			// Check for overlaps with obstacles
+			for (const obstacle of obstacles) {
+				const closestX = Math.max(x, Math.min(obstacle.x, x + width));
+				const closestY = Math.max(y, Math.min(obstacle.y, y + height));
+				const distance = Math.sqrt((closestX - obstacle.x) ** 2 + (closestY - obstacle.y) ** 2);
+				if (distance < obstacle.radius) {
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		// Search for the best rectangle
+		for (let x = -mainRadius; x < mainRadius; x += step) {
+			for (let y = -mainRadius; y < mainRadius; y += step) {
+				for (let width = step; width <= 2 * mainRadius; width += step) {
+					for (let height = step; height < width; height += step) {
+						if (isRectangleValid(x, y, width, height)) {
+							const area = width * height;
+							if (area > maxArea) {
+								maxArea = area;
+								bestRect = { x, y, width, height, area };
+							}
+						}
+					}
+				}
 			}
 		}
+
+		return bestRect;
 	}
 
 	function boxingForce() {

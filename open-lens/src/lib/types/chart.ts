@@ -310,7 +310,7 @@ type CircularPackingProps = {
 		/** Show labels */
 		show?: boolean;
 		/** Font size */
-		fontSize?: number;
+		fontSize: number;
 		/** Font size multiplier for group labels */
 		groupFontSizeMultiplier?: number;
 		/** Font weight */
@@ -319,6 +319,8 @@ type CircularPackingProps = {
 		color?: string;
 		/** Min circle radius to show label */
 		minRadiusToShow?: number;
+		/** Auto fit text in circles */
+		autoFitText: true;
 		/** Filter function for labels */
 		filter?: (node: d3.HierarchyNode<HierarchyNode>) => boolean;
 	};

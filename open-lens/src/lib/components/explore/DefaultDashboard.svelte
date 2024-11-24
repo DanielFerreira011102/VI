@@ -273,7 +273,8 @@
 				},
 				labelConfig: {
 					show: true,
-					fontSize: 13,
+					fontSize: 14,
+					autoFitText: true,
 					fontWeight: 500,
 					color: '#333333',
 					minRadiusToShow: 20,
