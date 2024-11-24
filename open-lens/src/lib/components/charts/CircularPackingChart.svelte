@@ -42,21 +42,7 @@
 			fontWeight: 400,
 			color: '#333333',
 			minRadiusToShow: 20,
-			filter: (node: d3.HierarchyNode<HierarchyNode>) => node.depth > 1,
-			textFinding: {
-				gridSize: 15,
-				ratios: [2, 2.5, 3, 3.5, 4],
-				minFontSize: 4,
-				maxFontSize: 100,
-				fontSizeStep: 2,
-				leafNodePadding: {
-					x: 0.8,
-					y: 0.4,
-					width: 1.6,
-					height: 0.8
-				},
-				rectPadding: 0.95
-			}
+			filter: (node: d3.HierarchyNode<HierarchyNode>) => node.depth > 1
 		}
 	);
 
@@ -236,6 +222,7 @@
 			node.r = calculateRadius(node);
 		});
 
+		// Build complete node collection once
 		nodes = [...depth1Nodes];
 		depth1Nodes.forEach((node) => {
 			packChildren(node);
@@ -243,9 +230,6 @@
 		});
 
 		if (simulation) simulation.stop();
-
-		// First render nodes without rectangles
-		updateNodes(nodes, container);
 
 		simulation = d3
 			.forceSimulation(depth1Nodes)
@@ -257,6 +241,7 @@
 			.force('y', d3.forceY(innerHeight / 2).strength(0.1))
 			.force('box', boxingForce())
 			.on('tick', () => {
+				// Only update positions during simulation
 				depth1Nodes.forEach((node) => {
 					packChildren(node);
 				});
@@ -264,14 +249,17 @@
 			});
 
 		simulation.tick(300);
+
+		// Final update after simulation is complete
+		updateNodes(nodes, container);
 	}
 
-	// Add a flag to control whether to show rectangles
 	function updateNodes(
 		nodes: d3.HierarchyNode<HierarchyNode>[] = [],
 		container: d3.Selection<SVGGElement, unknown, null, undefined>
 	) {
 		const allNodes = container.selectAll('.node').data(nodes, (d: any) => d.data.name);
+
 		allNodes.exit().remove();
 
 		const newNodes = allNodes.enter().append('g').attr('class', 'node');
@@ -293,6 +281,7 @@
 				fillOpacity: 0.3
 			};
 
+			// Update circle
 			group
 				.select('circle')
 				.attr('r', node.r)
@@ -302,182 +291,56 @@
 				.attr('stroke-width', style.strokeWidth)
 				.attr('stroke-opacity', style.strokeOpacity);
 
+			// Update label
 			const label = group.select('text');
+			if (labelConfig.show && labelConfig.filter(node) && node.r >= labelConfig.minRadiusToShow) {
+				label
+					.attr('font-size', labelConfig.fontSize)
+					.attr('font-weight', labelConfig.fontWeight)
+					.attr('fill', labelConfig.color)
+					.text(node.data.name);
 
-			// Early exit if label shouldn't be shown
-			if (
-				!labelConfig.show ||
-				(labelConfig.filter && !labelConfig.filter(node)) ||
-				(labelConfig.minRadiusToShow && node.r < labelConfig.minRadiusToShow)
-			) {
+				fitText(label, node.r);
+				} else {
 				label.text('');
-				return;
-			}
-
-			// Find maximum rectangle for text
-			const maxRect = findMaximumRectangle(node);
-			if (!maxRect) {
-				label.text('');
-				return;
-			}
-
-			// Position the text
-			label.attr('x', maxRect.x + maxRect.width / 2).attr('y', maxRect.y + maxRect.height / 2);
-
-			if (labelConfig.autoFitText) {
-				const {
-					minFontSize = 4,
-					maxFontSize = 100,
-					fontSizeStep = 2,
-					rectPadding = 0.95
-				} = labelConfig.textFinding ?? {};
-
-				let fontSize = maxFontSize;
-				label.text(node.data.name);
-
-				while (fontSize > minFontSize) {
-					label.attr('font-size', fontSize);
-					const bbox = label.node()?.getBBox();
-					if (
-						bbox &&
-						bbox.width <= maxRect.width * rectPadding &&
-						bbox.height <= maxRect.height * rectPadding
-					) {
-						break;
-					}
-					fontSize -= fontSizeStep;
-				}
-
-				if (fontSize <= minFontSize) {
-					let truncated = node.data.name;
-					label.attr('font-size', minFontSize);
-					while (truncated.length > 3) {
-						truncated = truncated.slice(0, -1);
-						label.text(truncated + '...');
-						const bbox = label.node()?.getBBox();
-						if (
-							bbox &&
-							bbox.width <= maxRect.width * rectPadding &&
-							bbox.height <= maxRect.height * rectPadding
-						) {
-							break;
-						}
-					}
-				}
-			} else {
-				label.attr('font-size', labelConfig.fontSize).text(node.data.name);
-
-				const bbox = label.node()?.getBBox();
-				const rectPadding = labelConfig.textFinding?.rectPadding ?? 0.95;
-
-				if (
-					bbox &&
-					(bbox.width > maxRect.width * rectPadding || bbox.height > maxRect.height * rectPadding)
-				) {
-					let truncated = node.data.name;
-					while (truncated.length > 3) {
-						truncated = truncated.slice(0, -1);
-						label.text(truncated + '...');
-						const bbox = label.node()?.getBBox();
-						if (
-							bbox &&
-							bbox.width <= maxRect.width * rectPadding &&
-							bbox.height <= maxRect.height * rectPadding
-						) {
-							break;
-						}
-					}
-				}
 			}
 		});
 	}
 
-	function findMaximumRectangle(node: d3.HierarchyNode<HierarchyNode>) {
-		const config = labelConfig.textFinding ?? {};
+	function fitText(text: d3.Selection<SVGTextElement, any, any, any>, radius: number) {
+		const node = text.node();
+		if (!node) return;
 
-		if (!node.children || node.children.length === 0) {
-			const r = node.r || 0;
-			const padding = config.leafNodePadding ?? {
-				x: 0.8,
-				y: 0.4,
-				width: 1.6,
-				height: 0.8
-			};
-			return {
-				x: -r * padding.x,
-				y: -r * padding.y,
-				width: r * padding.width,
-				height: r * padding.height
-			};
+		const originalText = text.text();
+		const maxWidth = radius * 1.8; // Diameter minus some padding
+
+		// If text is too small, don't show it at all
+		if (radius < labelConfig.minRadiusToShow) {
+			text.text('');
+			return;
 		}
 
-		const mainRadius = node.r || 0;
-		const gridSize = config.gridSize ?? 15;
-		const step = (2 * mainRadius) / gridSize;
-		const ratios = config.ratios ?? [2, 2.5, 3, 3.5, 4];
+		// Get the computed text length
+		const textLength = node.getComputedTextLength();
 
-		const obstacles = node.children.map((child) => ({
-			x: (child.x || 0) - (node.x || 0),
-			y: (child.y || 0) - (node.y || 0),
-			radius: child.r || 0
-		}));
+		if (textLength > maxWidth) {
+			// If text is too long, try to abbreviate it
+			let abbreviated = originalText;
+			let ellipsis = '...';
 
-		let maxArea = 0;
-		let bestRect = null;
-
-		for (let x = -mainRadius; x < mainRadius; x += step * 2) {
-			for (let y = -mainRadius; y < mainRadius; y += step * 2) {
-				for (const ratio of ratios) {
-					for (let height = step; height <= mainRadius; height += step * 2) {
-						const width = height * ratio;
-
-						if (width <= height) continue;
-
-						const corners = [
-							[x, y],
-							[x + width, y],
-							[x, y + height],
-							[x + width, y + height]
-						];
-
-						let valid = true;
-
-						// Check if inside main circle
-						for (const [cx, cy] of corners) {
-							if (Math.sqrt(cx * cx + cy * cy) > mainRadius) {
-								valid = false;
-								break;
-							}
-						}
-
-						if (!valid) continue;
-
-						// Check obstacles
-						for (const obstacle of obstacles) {
-							const closestX = Math.max(x, Math.min(obstacle.x, x + width));
-							const closestY = Math.max(y, Math.min(obstacle.y, y + height));
-							const distance = Math.sqrt(
-								(closestX - obstacle.x) ** 2 + (closestY - obstacle.y) ** 2
-							);
-							if (distance < obstacle.radius) {
-								valid = false;
-								break;
-							}
-						}
-
-						if (valid) {
-							const area = width * height;
-							if (area > maxArea) {
-								maxArea = area;
-								bestRect = { x, y, width, height, area };
-							}
-						}
-					}
+			while (abbreviated.length > 0) {
+				text.text(abbreviated + ellipsis);
+				if (node.getComputedTextLength() <= maxWidth) {
+					break;
 				}
+				abbreviated = abbreviated.slice(0, -1);
+			}
+
+			// If even a single character plus ellipsis is too long, show nothing
+			if (abbreviated.length === 0) {
+				text.text('');
 			}
 		}
-
-		return bestRect;
 	}
 
 	function boxingForce() {
