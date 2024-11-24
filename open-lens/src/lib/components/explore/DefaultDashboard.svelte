@@ -278,7 +278,22 @@
 					fontWeight: 500,
 					color: '#333333',
 					minRadiusToShow: 20,
-					filter: (node: any) => node.depth > 1
+					filter: (node: any) => node.depth > 1,
+					textFinding: {
+						gridSize: 20, // Grid size for rectangle search
+						ratios: [1.5, 2, 2.5, 3, 3.5, 5], // Width to height ratios to try
+						minFontSize: 4, // Minimum font size before truncating
+						maxFontSize: 100, // Starting font size for auto-fitting
+						fontSizeStep: 2, // How much to decrease font size in each iteration
+						leafNodePadding: {
+							// For nodes without children
+							x: 0.8, // How much of radius to use for x position
+							y: 0.4, // How much of radius to use for y position
+							width: 1.6, // How much of radius to use for width
+							height: 0.8 // How much of radius to use for height
+						},
+						rectPadding: 0.95 // How much of the found rectangle to use (0.95 = 95%)
+					}
 				}
 			}
 		}

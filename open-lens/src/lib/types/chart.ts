@@ -272,6 +272,21 @@ type CircularPackingPointerState = {
 	highlightedNodes: Set<d3.HierarchyNode<HierarchyNode>>;
 };
 
+type TextFindingConfig = {
+	gridSize?: number;
+	ratios?: number[];
+	minFontSize?: number;
+	maxFontSize?: number;
+	fontSizeStep?: number;
+	leafNodePadding?: {
+		x?: number;
+		y?: number;
+		width?: number;
+		height?: number;
+	};
+	rectPadding?: number;
+};
+
 type CircularPackingProps = {
 	/** The hierarchical data to be displayed */
 	data?: HierarchyNode;
@@ -310,7 +325,7 @@ type CircularPackingProps = {
 		/** Show labels */
 		show?: boolean;
 		/** Font size */
-		fontSize: number;
+		fontSize?: number;
 		/** Font size multiplier for group labels */
 		groupFontSizeMultiplier?: number;
 		/** Font weight */
@@ -320,9 +335,11 @@ type CircularPackingProps = {
 		/** Min circle radius to show label */
 		minRadiusToShow?: number;
 		/** Auto fit text in circles */
-		autoFitText: true;
+		autoFitText?: boolean;
 		/** Filter function for labels */
 		filter?: (node: d3.HierarchyNode<HierarchyNode>) => boolean;
+		/** Text finding algorithm configuration */
+		textFinding?: TextFindingConfig;
 	};
 };
 
