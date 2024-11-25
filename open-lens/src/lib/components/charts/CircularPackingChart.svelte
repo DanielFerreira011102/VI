@@ -44,19 +44,19 @@
 			minRadiusToShow: 20,
 			filter: (node: d3.HierarchyNode<HierarchyNode>) => node.depth > 1,
 			textFinding: {
-                gridSize: 15,
-                ratios: [2, 2.5, 3, 3.5, 4],
-                minFontSize: 4,
-                maxFontSize: 100,
-                fontSizeStep: 2,
-                leafNodePadding: {
-                    x: 0.8,
-                    y: 0.4,
-                    width: 1.6,
-                    height: 0.8
-                },
-                rectPadding: 0.95
-            }
+				gridSize: 15,
+				ratios: [2, 2.5, 3, 3.5, 4],
+				minFontSize: 4,
+				maxFontSize: 100,
+				fontSizeStep: 2,
+				leafNodePadding: {
+					x: 0.8,
+					y: 0.4,
+					width: 1.6,
+					height: 0.8
+				},
+				rectPadding: 0.95
+			}
 		}
 	);
 
@@ -120,7 +120,7 @@
 	}
 
 	function calculateRadius(node: d3.HierarchyNode<HierarchyNode>): number {
-		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 1000;
+		return (Math.sqrt(node.value || 50) * Math.min(innerWidth, innerHeight)) / 700;
 	}
 
 	function isPointInCircle(px: number, py: number, cx: number, cy: number, r: number): boolean {
@@ -229,23 +229,35 @@
 
 		const container = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-		const hierarchy = d3.hierarchy(data).sum((d) => d.value || 1);
+		// Create hierarchy but don't pack it yet
+		const root = d3
+			.hierarchy(data)
+			.sum((d) => d.value || 1)
+			.sort((a, b) => (b.value || 0) - (a.value || 0));
 
-		const depth1Nodes = hierarchy.children || [];
+		// Get the top-level nodes
+		const depth1Nodes = root.children || [];
+
+		// Calculate radii for top-level nodes based on their values
 		depth1Nodes.forEach((node) => {
 			node.r = calculateRadius(node);
 		});
 
+		// Store all nodes starting with depth 1 (excluding root)
 		nodes = [...depth1Nodes];
+
+		// Pack children for each top-level node
 		depth1Nodes.forEach((node) => {
 			packChildren(node);
+			// Add all descendants to nodes array
 			nodes = nodes.concat(node.descendants().slice(1));
 		});
 
-		if (simulation) simulation.stop();
-
-		// First render nodes without rectangles
+		// Initial render of nodes
 		updateNodes(nodes, container);
+
+		// Set up force simulation for top-level nodes only
+		if (simulation) simulation.stop();
 
 		simulation = d3
 			.forceSimulation(depth1Nodes)
@@ -257,17 +269,18 @@
 			.force('y', d3.forceY(innerHeight / 2).strength(0.1))
 			.force('box', boxingForce())
 			.on('tick', () => {
+				// After each tick, repack children to maintain their relative positions
 				depth1Nodes.forEach((node) => {
 					packChildren(node);
 				});
 				updatePositions(container);
 			});
 
+		// Run some initial ticks to get a better starting position
 		simulation.tick(300);
 	}
 
-
-	// Add a flag to control whether to show rectangles
+	// Update the updateNodes function to use the pack-calculated positions
 	function updateNodes(
 		nodes: d3.HierarchyNode<HierarchyNode>[] = [],
 		container: d3.Selection<SVGGElement, unknown, null, undefined>
@@ -275,7 +288,11 @@
 		const allNodes = container.selectAll('.node').data(nodes, (d: any) => d.data.name);
 		allNodes.exit().remove();
 
-		const newNodes = allNodes.enter().append('g').attr('class', 'node');
+		const newNodes = allNodes
+			.enter()
+			.append('g')
+			.attr('class', 'node')
+			.attr('transform', (d) => `translate(${d.x},${d.y})`);
 
 		newNodes.append('circle');
 		newNodes
@@ -306,174 +323,180 @@
 			const label = group.select('text');
 
 			// Early exit if label shouldn't be shown
-            if (!labelConfig.show || 
-                (labelConfig.filter && !labelConfig.filter(node)) || 
-                (labelConfig.minRadiusToShow && node.r < labelConfig.minRadiusToShow)) {
-                label.text('');
-                return;
-            }
+			if (
+				!labelConfig.show ||
+				(labelConfig.filter && !labelConfig.filter(node)) ||
+				(labelConfig.minRadiusToShow && node.r < labelConfig.minRadiusToShow)
+			) {
+				label.text('');
+				return;
+			}
 
-            // Find maximum rectangle for text
-            const maxRect = findMaximumRectangle(node);
-            if (!maxRect) {
-                label.text('');
-                return;
-            }
+			// Find maximum rectangle for text
+			const maxRect = findMaximumRectangle(node);
+			if (!maxRect) {
+				label.text('');
+				return;
+			}
 
-            // Position the text
-            label
-                .attr('x', maxRect.x + maxRect.width / 2)
-                .attr('y', maxRect.y + maxRect.height / 2);
+			// Position the text
+			label.attr('x', maxRect.x + maxRect.width / 2).attr('y', maxRect.y + maxRect.height / 2);
 
-            if (labelConfig.autoFitText) {
-                const {
-                    minFontSize = 4,
-                    maxFontSize = 100,
-                    fontSizeStep = 2,
-                    rectPadding = 0.95
-                } = labelConfig.textFinding ?? {};
+			if (labelConfig.autoFitText) {
+				const {
+					minFontSize = 4,
+					maxFontSize = 100,
+					fontSizeStep = 2,
+					rectPadding = 0.95
+				} = labelConfig.textFinding ?? {};
 
-                let fontSize = maxFontSize;
-                label.text(node.data.name);
+				let fontSize = maxFontSize;
+				label.text(node.data.name);
 
-                while (fontSize > minFontSize) {
-                    label.attr('font-size', fontSize);
-                    const bbox = label.node()?.getBBox();
-                    if (bbox && 
-                        bbox.width <= maxRect.width * rectPadding && 
-                        bbox.height <= maxRect.height * rectPadding) {
-                        break;
-                    }
-                    fontSize -= fontSizeStep;
-                }
+				while (fontSize > minFontSize) {
+					label.attr('font-size', fontSize);
+					const bbox = label.node()?.getBBox();
+					if (
+						bbox &&
+						bbox.width <= maxRect.width * rectPadding &&
+						bbox.height <= maxRect.height * rectPadding
+					) {
+						break;
+					}
+					fontSize -= fontSizeStep;
+				}
 
-                if (fontSize <= minFontSize) {
-                    let truncated = node.data.name;
-                    label.attr('font-size', minFontSize);
-                    while (truncated.length > 3) {
-                        truncated = truncated.slice(0, -1);
-                        label.text(truncated + '...');
-                        const bbox = label.node()?.getBBox();
-                        if (bbox && 
-                            bbox.width <= maxRect.width * rectPadding && 
-                            bbox.height <= maxRect.height * rectPadding) {
-                            break;
-                        }
-                    }
-                }
-            } else {
-                label
-                    .attr('font-size', labelConfig.fontSize)
-                    .text(node.data.name);
+				if (fontSize <= minFontSize) {
+					let truncated = node.data.name;
+					label.attr('font-size', minFontSize);
+					while (truncated.length > 3) {
+						truncated = truncated.slice(0, -1);
+						label.text(truncated + '...');
+						const bbox = label.node()?.getBBox();
+						if (
+							bbox &&
+							bbox.width <= maxRect.width * rectPadding &&
+							bbox.height <= maxRect.height * rectPadding
+						) {
+							break;
+						}
+					}
+				}
+			} else {
+				label.attr('font-size', labelConfig.fontSize).text(node.data.name);
 
-                const bbox = label.node()?.getBBox();
-                const rectPadding = labelConfig.textFinding?.rectPadding ?? 0.95;
-                
-                if (bbox && (bbox.width > maxRect.width * rectPadding || 
-                           bbox.height > maxRect.height * rectPadding)) {
-                    let truncated = node.data.name;
-                    while (truncated.length > 3) {
-                        truncated = truncated.slice(0, -1);
-                        label.text(truncated + '...');
-                        const bbox = label.node()?.getBBox();
-                        if (bbox && 
-                            bbox.width <= maxRect.width * rectPadding && 
-                            bbox.height <= maxRect.height * rectPadding) {
-                            break;
-                        }
-                    }
-                }
-            }
-        });
-    }
+				const bbox = label.node()?.getBBox();
+				const rectPadding = labelConfig.textFinding?.rectPadding ?? 0.95;
+
+				if (
+					bbox &&
+					(bbox.width > maxRect.width * rectPadding || bbox.height > maxRect.height * rectPadding)
+				) {
+					let truncated = node.data.name;
+					while (truncated.length > 3) {
+						truncated = truncated.slice(0, -1);
+						label.text(truncated + '...');
+						const bbox = label.node()?.getBBox();
+						if (
+							bbox &&
+							bbox.width <= maxRect.width * rectPadding &&
+							bbox.height <= maxRect.height * rectPadding
+						) {
+							break;
+						}
+					}
+				}
+			}
+		});
+	}
 
 	function findMaximumRectangle(node: d3.HierarchyNode<HierarchyNode>) {
-        const config = labelConfig.textFinding ?? {};
-        
-        if (!node.children || node.children.length === 0) {
-            const r = node.r || 0;
-            const padding = config.leafNodePadding ?? {
-                x: 0.8,
-                y: 0.4,
-                width: 1.6,
-                height: 0.8
-            };
-            return {
-                x: -r * padding.x,
-                y: -r * padding.y,
-                width: r * padding.width,
-                height: r * padding.height
-            };
-        }
+		const config = labelConfig.textFinding ?? {};
 
-        const mainRadius = node.r || 0;
-        const gridSize = config.gridSize ?? 15;
-        const step = (2 * mainRadius) / gridSize;
-        const ratios = config.ratios ?? [2, 2.5, 3, 3.5, 4];
+		if (!node.children || node.children.length === 0) {
+			const r = node.r || 0;
+			const padding = config.leafNodePadding ?? {
+				x: 0.8,
+				y: 0.4,
+				width: 1.6,
+				height: 0.8
+			};
+			return {
+				x: -r * padding.x,
+				y: -r * padding.y,
+				width: r * padding.width,
+				height: r * padding.height
+			};
+		}
 
-        const obstacles = node.children.map((child) => ({
-            x: (child.x || 0) - (node.x || 0),
-            y: (child.y || 0) - (node.y || 0),
-            radius: child.r || 0
-        }));
+		const mainRadius = node.r || 0;
+		const gridSize = config.gridSize ?? 15;
+		const step = (2 * mainRadius) / gridSize;
+		const ratios = config.ratios ?? [2, 2.5, 3, 3.5, 4];
 
-        let maxArea = 0;
-        let bestRect = null;
+		const obstacles = node.children.map((child) => ({
+			x: (child.x || 0) - (node.x || 0),
+			y: (child.y || 0) - (node.y || 0),
+			radius: child.r || 0
+		}));
 
-        for (let x = -mainRadius; x < mainRadius; x += step * 2) {
-            for (let y = -mainRadius; y < mainRadius; y += step * 2) {
-                for (const ratio of ratios) {
-                    for (let height = step; height <= mainRadius; height += step * 2) {
-                        const width = height * ratio;
+		let maxArea = 0;
+		let bestRect = null;
 
-                        if (width <= height) continue;
+		for (let x = -mainRadius; x < mainRadius; x += step * 2) {
+			for (let y = -mainRadius; y < mainRadius; y += step * 2) {
+				for (const ratio of ratios) {
+					for (let height = step; height <= mainRadius; height += step * 2) {
+						const width = height * ratio;
 
-                        const corners = [
-                            [x, y],
-                            [x + width, y],
-                            [x, y + height],
-                            [x + width, y + height]
-                        ];
+						if (width <= height) continue;
 
-                        let valid = true;
+						const corners = [
+							[x, y],
+							[x + width, y],
+							[x, y + height],
+							[x + width, y + height]
+						];
 
-                        // Check if inside main circle
-                        for (const [cx, cy] of corners) {
-                            if (Math.sqrt(cx * cx + cy * cy) > mainRadius) {
-                                valid = false;
-                                break;
-                            }
-                        }
+						let valid = true;
 
-                        if (!valid) continue;
+						// Check if inside main circle
+						for (const [cx, cy] of corners) {
+							if (Math.sqrt(cx * cx + cy * cy) > mainRadius) {
+								valid = false;
+								break;
+							}
+						}
 
-                        // Check obstacles
-                        for (const obstacle of obstacles) {
-                            const closestX = Math.max(x, Math.min(obstacle.x, x + width));
-                            const closestY = Math.max(y, Math.min(obstacle.y, y + height));
-                            const distance = Math.sqrt(
-                                (closestX - obstacle.x) ** 2 + (closestY - obstacle.y) ** 2
-                            );
-                            if (distance < obstacle.radius) {
-                                valid = false;
-                                break;
-                            }
-                        }
+						if (!valid) continue;
 
-                        if (valid) {
-                            const area = width * height;
-                            if (area > maxArea) {
-                                maxArea = area;
-                                bestRect = { x, y, width, height, area };
-                            }
-                        }
-                    }
-                }
-            }
-        }
+						// Check obstacles
+						for (const obstacle of obstacles) {
+							const closestX = Math.max(x, Math.min(obstacle.x, x + width));
+							const closestY = Math.max(y, Math.min(obstacle.y, y + height));
+							const distance = Math.sqrt(
+								(closestX - obstacle.x) ** 2 + (closestY - obstacle.y) ** 2
+							);
+							if (distance < obstacle.radius) {
+								valid = false;
+								break;
+							}
+						}
 
-        return bestRect;
-    }
+						if (valid) {
+							const area = width * height;
+							if (area > maxArea) {
+								maxArea = area;
+								bestRect = { x, y, width, height, area };
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return bestRect;
+	}
 
 	function boxingForce() {
 		return function (alpha: number) {

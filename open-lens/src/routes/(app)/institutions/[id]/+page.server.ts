@@ -10,12 +10,18 @@ export const load: PageLoad = async ({ params }) => {
 		mostDiscussedTopics: {},
 		mostRecentWorks: {},
 		funders: {},
-		retractions: {},
+		retractions: {}
 	};
 
 	try {
 		// Parallel API calls using Promise.all
-		const [infoResponse, openAccessResponse, mostRecentWorksResponse, fundersResponse, retractionsResponse] = await Promise.all([
+		const [
+			infoResponse,
+			openAccessResponse,
+			mostRecentWorksResponse,
+			fundersResponse,
+			retractionsResponse
+		] = await Promise.all([
 			fetch(`https://api.openalex.org/institutions/${params.id}`),
 			fetch(
 				`https://api.openalex.org/works?group_by=open_access.is_oa&per_page=200&filter=authorships.institutions.lineage:${params.id}`
@@ -27,8 +33,8 @@ export const load: PageLoad = async ({ params }) => {
 				`https://api.openalex.org/works?group_by=grants.funder&per_page=5&filter=authorships.institutions.lineage:${params.id}`
 			),
 			fetch(
-				`https://api.openalex.org/works?group_by=is_retracted&per_page=200&filter=authorships.institutions.lineage:${params.id}` 
-			),
+				`https://api.openalex.org/works?group_by=is_retracted&per_page=200&filter=authorships.institutions.lineage:${params.id}`
+			)
 		]);
 
 		// Parallel JSON parsing
@@ -47,7 +53,7 @@ export const load: PageLoad = async ({ params }) => {
 				: Promise.reject(`Funders API failed: ${fundersResponse.status}`),
 			retractionsResponse.ok
 				? retractionsResponse.json()
-				: Promise.reject(`Retractions API failed: ${retractionsResponse.status}`),
+				: Promise.reject(`Retractions API failed: ${retractionsResponse.status}`)
 		]);
 
 		// Assign results and process yearlyWorkOutput

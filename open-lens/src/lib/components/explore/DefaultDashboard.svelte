@@ -654,12 +654,15 @@
 				}
 				const term = selectedTerms.find((term) => term.data.display_name === topParent.data.name);
 
+				// Provide a fallback color if term is not found
+				const color = term?.color ?? '#666666'; // You can change this fallback color
+
 				return `
             <div class="relative bg-white bg-opacity-90 text-gray-900 border border-gray-200 shadow-md p-3 min-w-48 max-w-96 z-50">
                 <div class="pb-2 font-semibold">${name}</div>
                 <div class="flex items center justify-between mt-2">
                     <span class="truncate">Works</span>
-                    <span class="ml-4" style="color: ${term.color}">${count}</span>
+                    <span class="ml-4" style="color: ${color}">${count?.toLocaleString() ?? 0}</span>
                 </div>
             </div>
         `;
