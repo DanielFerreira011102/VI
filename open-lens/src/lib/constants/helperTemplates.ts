@@ -11,7 +11,6 @@ export const helpTexts = {
 		features: [
 			'Left bar shows overall averages',
 			'Line chart displays detailed yearly trends',
-			'Dynamic scale adapts to data range',
 			'Hover for detailed statistics'
 		]
 	},
@@ -64,10 +63,7 @@ export const helpTexts = {
 	openAccess: {
 		title: 'Open Access Distribution',
 		description: 'Institution-wise comparison of open access publication rates.',
-		features: [
-			'Blue showcases open access works',
-			'Red showcases closed access works',
-		]
+		features: ['Blue showcases open access works', 'Red showcases closed access works']
 	},
 	institutionInfo: {
 		title: 'Metrics Over Time',
@@ -85,43 +81,33 @@ export const helpTexts = {
 	paperRetraction: {
 		title: 'Paper Retraction Distribution',
 		description: 'Institution-wise comparison of paper retractions.',
-		features: [
-			'Blue showcases non-retracted works',
-			'Red showcases retracted works',
-		]
+		features: ['Blue showcases non-retracted works', 'Red showcases retracted works']
 	},
 	totalWorkCount: {
 		title: 'Total Work Count',
-		description: 'Total work count of a single institution.',
+		description: 'Total work count of a single institution.'
 	},
 	totalCitationCount: {
 		title: 'Total Citation Count',
-		description: 'Total citation count of a single institution.',
+		description: 'Total citation count of a single institution.'
 	},
 	hindex: {
 		title: 'H-Index',
-		description: 'H-index of a single institution.',
+		description: 'H-index of a single institution.'
 	},
 	iindex: {
 		title: 'I-Index',
-		description: 'I-index of a single institution.',
+		description: 'I-index of a single institution.'
 	},
 	mostDiscussedTopics: {
 		title: 'Most Discussed Topics',
 		description: 'Most discussed topics of a single institution.',
-		features: [
-			'Displays top 10 most discussed topics',
-			'Ordered by descending number of works',
-		]
+		features: ['Displays top 10 most discussed topics', 'Ordered by descending number of works']
 	},
 	topFunders: {
 		title: 'Top Funders',
 		description: 'Top funders of a single institution.',
-		features: [
-			'Table displays top 10 funders',
-			'Ordered by number of works funded',
-			''
-		]
+		features: ['Table displays top 10 funders', 'Ordered by number of works funded', '']
 	},
 	latestWorks: {
 		title: 'Latest Works',
@@ -133,9 +119,9 @@ export const helpTexts = {
 			'First author of each work',
 			'Paper name and publication date',
 			'Hover for complete paper name.',
-			'Area of research of each work.',
+			'Area of research of each work.'
 		]
-	},
+	}
 };
 
 export const helpTemplates = {
