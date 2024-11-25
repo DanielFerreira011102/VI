@@ -6,26 +6,29 @@ export const load: PageLoad = async ({ params }) => {
 	const institutionData = {
 		info: {},
 		yearlyWorkOutput: {},
-		topicsPerWorkType: {},
 		openAccessDivision: {},
 		mostDiscussedTopics: {},
-		mostRecentWorks: {}
+		mostRecentWorks: {},
+		funders: {},
 	};
 
 	try {
 		// Parallel API calls using Promise.all
-		const [infoResponse, openAccessResponse, mostRecentWorksResponse] = await Promise.all([
+		const [infoResponse, openAccessResponse, mostRecentWorksResponse, fundersResponse] = await Promise.all([
 			fetch(`https://api.openalex.org/institutions/${params.id}`),
 			fetch(
 				`https://api.openalex.org/works?group_by=open_access.is_oa&per_page=200&filter=authorships.institutions.lineage:${params.id}`
 			),
 			fetch(
 				`https://api.openalex.org/works?page=1&filter=authorships.institutions.lineage:${params.id}&sort=publication_year:desc`
+			),
+			fetch(
+				`https://api.openalex.org/works?group_by=grants.funder&per_page=5&filter=authorships.institutions.lineage:${params.id}`
 			)
 		]);
 
 		// Parallel JSON parsing
-		const [info, openAccess, mostRecentWorks] = await Promise.all([
+		const [info, openAccess, mostRecentWorks, funders] = await Promise.all([
 			infoResponse.ok
 				? infoResponse.json()
 				: Promise.reject(`Info API failed: ${infoResponse.status}`),
@@ -34,7 +37,10 @@ export const load: PageLoad = async ({ params }) => {
 				: Promise.reject(`OpenAccess API failed: ${openAccessResponse.status}`),
 			mostRecentWorksResponse.ok
 				? mostRecentWorksResponse.json()
-				: Promise.reject(`Recent works API failed: ${mostRecentWorksResponse.status}`)
+				: Promise.reject(`Recent works API failed: ${mostRecentWorksResponse.status}`),
+			fundersResponse.ok
+				? fundersResponse.json()
+				: Promise.reject(`Funders API failed: ${fundersResponse.status}`),
 		]);
 
 		// Assign results and process yearlyWorkOutput
@@ -43,6 +49,7 @@ export const load: PageLoad = async ({ params }) => {
 		institutionData.mostDiscussedTopics = info.topics;
 		institutionData.openAccessDivision = openAccess;
 		institutionData.mostRecentWorks = mostRecentWorks;
+		institutionData.funders = funders;
 
 		return institutionData;
 	} catch (error) {

@@ -7,6 +7,7 @@
 
 	// Props
 	let { data }: { data: PageData } = $props();
+	console.log(data);
 
 	// Types
 	type MetricType = 'works' | 'citations' | 'avgCitations';
@@ -246,22 +247,18 @@
 
 <div class="container mx-auto flex flex-col gap-y-8 p-8">
 	<!-- Header section -->
-	<div class="flex h-min w-full items-center justify-evenly">
+	<div class="flex h-min w-full items-center justify-around">
 		<div class="w-1/4">
 			<img class="h-full w-full object-cover" src={data.info.image_url} alt="University logo" />
 		</div>
-		<div class="flex w-3/4 flex-wrap items-center justify-center">
-			<div class="rounded-md border border-slate-200 p-2">
-				<h1>{data.info.display_name}</h1>
+		<div class="flex w-3/4 items-center justify-center gap-x-24">
+			<div class="flex flex-col gap-y-6">
+				<h1><span class="text-xl font-bold">Name:</span> {data.info.display_name}</h1>
+				<h1><span class="text-xl font-bold">Website:</span> {data.info.homepage_url}</h1>
 			</div>
-			<div class="rounded-md border border-slate-200 p-2">
-				<h1>Homepage Url: {data.info.homepage_url}</h1>
-			</div>
-			<div class="rounded-md border border-slate-200 p-2">
-				<h1>Acronym: {data.info.display_name_acronyms}</h1>
-			</div>
-			<div class="rounded-md border border-slate-200 p-2">
-				<h1>Country Code: {data.info.country_code}</h1>
+			<div class="flex flex-col gap-y-6">
+				<h1><span class="text-xl font-bold">Acronym:</span>{data.info.display_name_acronyms}</h1>
+				<h1><span class="text-xl font-bold">Country Code</span> {data.info.country_code}</h1>
 			</div>
 		</div>
 	</div>
@@ -290,8 +287,33 @@
 			<h3 class="text-3xl font-medium">{data.info.cited_by_count}</h3>
 		</div>
 
-		<!-- Open Access -->
+		<!-- H-index -->
 		<div class="flex w-1/5 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
+			<div class="flex items-center justify-between">
+				<h3 class="text-lg font-medium">H-Index</h3>
+				<button class="h-8 w-8 text-gray-500">
+					<MdHelpOutline />
+				</button>
+			</div>
+			<h3 class="text-3xl font-medium">{data.info.summary_stats.h_index}</h3>
+		</div>
+
+		<!-- i10-index -->
+		<div class="flex w-1/5 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
+			<div class="flex items-center justify-between">
+				<h3 class="text-lg font-medium">i10-index</h3>
+				<button class="h-8 w-8 text-gray-500">
+					<MdHelpOutline />
+				</button>
+			</div>
+			<h3 class="text-3xl font-medium">{data.info.summary_stats.i10_index}</h3>
+		</div>
+	</div>
+
+	<!-- Table Metrics -->
+	<div class="flex w-full items-center justify-center gap-x-16">
+		<!-- Open Access -->
+		<!-- <div class="flex w-1/5 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">Open Access Works</h3>
 				<button class="h-8 w-8 text-gray-500">
@@ -306,23 +328,61 @@
 					seriesConfig={chartConfigs.pie.openAccess.seriesConfig}
 				/>
 			</div>
-		</div>
+		</div> -->
 
-		<!-- Funders -->
-		<div class="flex w-1/5 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
+		<!-- Most Discussed Topics -->
+		 <div class="flex w-1/2 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
 			<div class="flex items-center justify-between">
-				<h3 class="text-lg font-medium">Funders Distribution</h3>
+				<h3 class="text-lg font-medium">Most Discussed Topics</h3>
 				<button class="h-8 w-8 text-gray-500">
 					<MdHelpOutline />
 				</button>
 			</div>
-			<div class="container mx-auto">
-				<PieChart
-					data={transformers.pie.funders(data)}
-					colors={chartConfigs.pie.funders.colors}
-					popupTemplate={templates.pie.default}
-					seriesConfig={chartConfigs.pie.funders.seriesConfig}
-				/>
+			<div>
+				<table class="my-6 w-full table-auto p-6 text-left overflow-y-auto">
+					<thead>
+						<tr>
+							<th class="border-b border-slate-300 p-3 pb-3 pt-0 font-medium">Topic</th>
+							<th class="border-b border-slate-300 p-3 pb-3 pt-0 font-medium">Nº of Works</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each data.mostDiscussedTopics.slice(0, 5) as topic}
+							<tr>
+								<td class="border-b border-slate-300 p-3 pl-5">{topic.display_name}</td>
+								<td class="border-b border-slate-300 p-3">{topic.count}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		 </div>
+
+		<!-- Funders -->
+		<div class="flex w-1/2 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
+			<div class="flex items-center justify-between">
+				<h3 class="text-lg font-medium">Top Research Funders</h3>
+				<button class="h-8 w-8 text-gray-500">
+					<MdHelpOutline />
+				</button>
+			</div>
+			<div class="h-4/5">
+				<table class="my-6 w-full table-auto p-6 text-left overflow-y-auto">
+					<thead>
+						<tr>
+							<th class="border-b border-slate-300 p-3 pb-3 pt-0 font-medium">Contributor</th>
+							<th class="border-b border-slate-300 p-3 pb-3 pt-0 font-medium">Nº of Contributions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each data.funders.group_by as funder}
+							<tr>
+								<td class="border-b border-slate-300 p-3 pl-5">{funder.key_display_name}</td>
+								<td class="border-b border-slate-300 p-3">{funder.count}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
 			</div>
 		</div>
 	</div>
@@ -330,7 +390,7 @@
 	<!-- Yearly metrics chart -->
 	<div class="flex w-full flex-col rounded bg-slate-100 p-6 shadow-md">
 		<div class="flex items-center justify-between">
-			<div class="flex w-2/5 items-center justify-between">
+			<div class="flex w-2/5 items-center gap-x-16">
 				<h3 class="text-lg font-medium">{getMetricLabel(selectedMetric)} by Year</h3>
 				<Select
 					options={[
@@ -368,6 +428,44 @@
 		</div>
 	</div>
 
-	<div class="w-full rounded bg-slate-100 p-6 shadow-md">Barchart Most Discussed Topics</div>
-	<div class="w-full rounded bg-slate-100 p-6 shadow-md">Table for most recent works.</div>
+	<!-- Latest Works -->
+	<div class="w-full rounded bg-slate-100 p-6 shadow-md">
+		<div class="flex items-center justify-between">
+			<h3 class="text-lg font-medium">Latest Works</h3>
+			<button class="h-8 w-8 text-gray-500">
+				<MdHelpOutline />
+			</button>
+		</div>
+		<table class="my-6 w-full table-auto p-6 text-left">
+			<thead>
+				<tr>
+					<th class="border-b border-slate-300 p-4 pb-3 pt-0 font-medium">Title</th>
+					<th class="border-b border-slate-300 p-4 pb-3 pt-0 font-medium">Authors</th>
+					<th class="border-b border-slate-300 p-4 pb-3 pt-0 font-medium">Publish Date</th>
+					<th class="border-b border-slate-300 p-4 pb-3 pt-0 font-medium">Topic</th>
+					<th class="border-b border-slate-300 p-4 pb-3 pt-0 font-medium">Type</th>
+					<th class="border-b border-slate-300 p-4 pb-3 pt-0 font-medium">Nº of Citations</th>
+					<th class="border-b border-slate-300 p-4 pb-3 pt-0 font-medium">Open Access</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each data.mostRecentWorks.results.slice(0, 10) as work}
+					<tr class="group hover:bg-slate-200 transition-colors duration-200">
+						<td class="border-b border-slate-300 p-4 pl-8 relative max-w-[300px]">
+							<span class="line-clamp-1">{work.title}</span>
+							<span class="absolute left-0 top-full z-10 hidden group-hover:block bg-black text-white p-2 rounded">
+								{work.title}
+							</span>
+						</td>
+						<td class="border-b border-slate-300 p-4">{work.authorships[0].author.display_name}</td>
+						<td class="border-b border-slate-300 p-4">{work.publication_date}</td>
+						<td class="border-b border-slate-300 p-4">{work.primary_topic.domain.display_name}</td>
+						<td class="border-b border-slate-300 p-4">{work.type}</td>
+						<td class="border-b border-slate-300 p-4">{work.cited_by_count}</td>
+						<td class="border-b border-slate-300 p-4 pr-8">{work.open_access.oa_status}</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
 </div>
