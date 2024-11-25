@@ -10,11 +10,12 @@ export const load: PageLoad = async ({ params }) => {
 		mostDiscussedTopics: {},
 		mostRecentWorks: {},
 		funders: {},
+		retractions: {},
 	};
 
 	try {
 		// Parallel API calls using Promise.all
-		const [infoResponse, openAccessResponse, mostRecentWorksResponse, fundersResponse] = await Promise.all([
+		const [infoResponse, openAccessResponse, mostRecentWorksResponse, fundersResponse, retractionsResponse] = await Promise.all([
 			fetch(`https://api.openalex.org/institutions/${params.id}`),
 			fetch(
 				`https://api.openalex.org/works?group_by=open_access.is_oa&per_page=200&filter=authorships.institutions.lineage:${params.id}`
@@ -24,11 +25,14 @@ export const load: PageLoad = async ({ params }) => {
 			),
 			fetch(
 				`https://api.openalex.org/works?group_by=grants.funder&per_page=5&filter=authorships.institutions.lineage:${params.id}`
-			)
+			),
+			fetch(
+				`https://api.openalex.org/works?group_by=is_retracted&per_page=200&filter=authorships.institutions.lineage:${params.id}` 
+			),
 		]);
 
 		// Parallel JSON parsing
-		const [info, openAccess, mostRecentWorks, funders] = await Promise.all([
+		const [info, openAccess, mostRecentWorks, funders, retractions] = await Promise.all([
 			infoResponse.ok
 				? infoResponse.json()
 				: Promise.reject(`Info API failed: ${infoResponse.status}`),
@@ -41,6 +45,9 @@ export const load: PageLoad = async ({ params }) => {
 			fundersResponse.ok
 				? fundersResponse.json()
 				: Promise.reject(`Funders API failed: ${fundersResponse.status}`),
+			retractionsResponse.ok
+				? retractionsResponse.json()
+				: Promise.reject(`Retractions API failed: ${retractionsResponse.status}`),
 		]);
 
 		// Assign results and process yearlyWorkOutput
@@ -50,6 +57,7 @@ export const load: PageLoad = async ({ params }) => {
 		institutionData.openAccessDivision = openAccess;
 		institutionData.mostRecentWorks = mostRecentWorks;
 		institutionData.funders = funders;
+		institutionData.retractions = retractions;
 
 		return institutionData;
 	} catch (error) {

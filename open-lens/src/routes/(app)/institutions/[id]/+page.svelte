@@ -85,6 +85,19 @@
 					}
 				},
 				colors: ['#4ecdc4', '#ff6b6b']
+			},
+			retractions: {
+				seriesConfig: {
+					innerRadius: 0.6,
+					padAngle: 0.02,
+					cornerRadius: 0,
+					showHoverEffects: true,
+					hoverStyle: {
+						borderWidth: 2,
+						borderOpacity: 0.15
+					}
+				},
+				colors: ['#4ecdc4', '#ff6b6b']
 			}
 		}
 	};
@@ -157,6 +170,12 @@
 			funders: (data: any) => {
 				return data.openAccessDivision.group_by.map((item: any) => ({
 					label: item.key === 'true' ? 'Open' : 'Restrict',
+					value: item.count
+				}));
+			},
+			retractions: (data: any) => {
+				return data.retractions.group_by.map((item: any) => ({
+					label: item.key === '0' ? 'Published' : 'Retracted',
 					value: item.count
 				}));
 			}
@@ -310,28 +329,69 @@
 		</div>
 	</div>
 
-	<!-- Table Metrics -->
-	<div class="flex w-full items-center justify-center gap-x-16">
+	<!-- Pie Charts -->
+	<div class="flex w-full items-center gap-x-16">
 		<!-- Open Access -->
-		<!-- <div class="flex w-1/5 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
+		<div class="flex w-1/2 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
 			<div class="flex items-center justify-between">
-				<h3 class="text-lg font-medium">Open Access Works</h3>
+				<h3 class="text-lg font-medium">Open Access Division</h3>
 				<button class="h-8 w-8 text-gray-500">
 					<MdHelpOutline />
 				</button>
 			</div>
-			<div>
+			<div class="container mx-auto">
 				<PieChart
-					data={transformers.pie.openAccess(data)}
-					colors={chartConfigs.pie.openAccess.colors}
+					data={transformers.pie.funders(data)}
+					colors={chartConfigs.pie.funders.colors}
 					popupTemplate={templates.pie.default}
-					seriesConfig={chartConfigs.pie.openAccess.seriesConfig}
+					seriesConfig={chartConfigs.pie.funders.seriesConfig}
 				/>
 			</div>
-		</div> -->
+			<div class="flex items-center justify-around">
+				<div class="flex items-center gap-x-2">
+					<div class="h-3 w-3 bg-red-300"></div>
+					<span class="text-sm font-bold">Restrict</span>
+				</div>
+				<div class="flex items-center gap-x-2">
+					<div class="h-3 w-3 bg-blue-300"></div>
+					<span class="text-sm font-bold">Open</span>
+				</div>
+			</div>
+		</div>
 
+		<!-- Paper Rectraction -->
+		<div class="flex w-1/2 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
+			<div class="flex items-center justify-between">
+				<h3 class="text-lg font-medium">Paper Retraction Division</h3>
+				<button class="h-8 w-8 text-gray-500">
+					<MdHelpOutline />
+				</button>
+			</div>
+			<div class="container mx-auto">
+				<PieChart
+					data={transformers.pie.retractions(data)}
+					colors={chartConfigs.pie.retractions.colors}
+					popupTemplate={templates.pie.default}
+					seriesConfig={chartConfigs.pie.retractions.seriesConfig}
+				/>
+			</div>
+			<div class="flex items-center justify-around">
+				<div class="flex items-center gap-x-2">
+					<div class="h-3 w-3 bg-red-300"></div>
+					<span class="text-sm font-bold">Retracted</span>
+				</div>
+				<div class="flex items-center gap-x-2">
+					<div class="h-3 w-3 bg-blue-300"></div>
+					<span class="text-sm font-bold">Published</span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Table Metrics -->
+	<div class="flex w-full items-center justify-center gap-x-16">
 		<!-- Most Discussed Topics -->
-		 <div class="flex w-1/2 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
+		<div class="flex w-1/2 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">Most Discussed Topics</h3>
 				<button class="h-8 w-8 text-gray-500">
@@ -339,7 +399,7 @@
 				</button>
 			</div>
 			<div>
-				<table class="my-6 w-full table-auto p-6 text-left overflow-y-auto">
+				<table class="my-6 w-full table-auto overflow-y-auto p-6 text-left">
 					<thead>
 						<tr>
 							<th class="border-b border-slate-300 p-3 pb-3 pt-0 font-medium">Topic</th>
@@ -356,7 +416,7 @@
 					</tbody>
 				</table>
 			</div>
-		 </div>
+		</div>
 
 		<!-- Funders -->
 		<div class="flex w-1/2 flex-col gap-y-2 rounded bg-slate-100 p-6 shadow-md">
@@ -367,11 +427,13 @@
 				</button>
 			</div>
 			<div class="h-4/5">
-				<table class="my-6 w-full table-auto p-6 text-left overflow-y-auto">
+				<table class="my-6 w-full table-auto overflow-y-auto p-6 text-left">
 					<thead>
 						<tr>
 							<th class="border-b border-slate-300 p-3 pb-3 pt-0 font-medium">Contributor</th>
-							<th class="border-b border-slate-300 p-3 pb-3 pt-0 font-medium">Nº of Contributions</th>
+							<th class="border-b border-slate-300 p-3 pb-3 pt-0 font-medium"
+								>Nº of Contributions</th
+							>
 						</tr>
 					</thead>
 					<tbody>
@@ -450,10 +512,12 @@
 			</thead>
 			<tbody>
 				{#each data.mostRecentWorks.results.slice(0, 10) as work}
-					<tr class="group hover:bg-slate-200 transition-colors duration-200">
-						<td class="border-b border-slate-300 p-4 pl-8 relative max-w-[300px]">
+					<tr class="group transition-colors duration-200 hover:bg-slate-200">
+						<td class="relative max-w-[300px] border-b border-slate-300 p-4 pl-8">
 							<span class="line-clamp-1">{work.title}</span>
-							<span class="absolute left-0 top-full z-10 hidden group-hover:block bg-black text-white p-2 rounded">
+							<span
+								class="absolute left-0 top-full z-10 hidden rounded bg-black p-2 text-white group-hover:block"
+							>
 								{work.title}
 							</span>
 						</td>
