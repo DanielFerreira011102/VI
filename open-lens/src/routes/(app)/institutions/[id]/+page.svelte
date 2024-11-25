@@ -360,12 +360,17 @@
 			</div>
 			<div class="flex w-full sm:w-3/4 flex-col sm:flex-row items-start sm:items-center justify-center gap-4 sm:gap-x-24">
 				<div class="flex flex-col gap-y-4">
-					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold">Name:</span> {institutionData.info.display_name}</h1>
-					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold">Website:</span> {institutionData.info.homepage_url}</h1>
+					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold mr-2">Name:</span> {institutionData.info.display_name}</h1>
+					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold mr-2">Website:</span> {institutionData.info.homepage_url}</h1>
 				</div>
 				<div class="flex flex-col gap-y-4">
-					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold">Acronym:</span>{institutionData.info.display_name_acronyms}</h1>
-					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold">Country Code:</span> {institutionData.info.country_code}</h1>
+					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold mr-2">Acronym:</span>{institutionData.info.display_name_acronyms}</h1>
+					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold mr-2">Country:</span> {institutionData.info.geo.country}</h1>
+				</div>
+				<div class="flex flex-col gap-y-4">
+					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold mr-2">Type:</span>{institutionData.info.type}
+					</h1>
+					<h1 class="text-sm sm:text-base"><span class="text-lg sm:text-xl font-bold mr-2">City:</span> {institutionData.info.geo.city}</h1>
 				</div>
 			</div>
 		</div>
