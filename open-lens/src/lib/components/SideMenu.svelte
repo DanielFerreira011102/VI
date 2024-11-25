@@ -2,12 +2,26 @@
 	import { fly, fade } from 'svelte/transition';
 	import { page } from '$app/stores';
 	import { dataStore } from '$lib/stores/dataStore';
+	import { termStore } from '$lib/stores/termStore';
+	import { goto } from '$app/navigation';
 	import MdSearch from 'svelte-icons/md/MdSearch.svelte';
 	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
 	import Logo from '$lib/assets/logo.png';
 
 	let { open = $bindable() } = $props();
-	const onClose = () => (open = false);
+
+	function onClose() {
+		open = false;
+	}
+
+	async function handleNavClick(e: MouseEvent, href: string) {
+		if (href === '/explore') {
+			e.preventDefault();
+			termStore.resetToInitial();
+			await goto('/explore', { replaceState: true });
+		}
+		open = false;
+	}
 
 	const icons = [MdSearch, MdHelpOutline];
 </script>
@@ -56,7 +70,7 @@
 											class:active={$page.url.pathname == item.href}
 										>
 											<a
-												onclick={onClose}
+												onclick={(e) => handleNavClick(e, item.href)}
 												href={item.href}
 												class="flex h-full w-full items-center px-6 text-base text-gray-500"
 											>
