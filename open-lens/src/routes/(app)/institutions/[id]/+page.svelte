@@ -3,11 +3,11 @@
 	import BarChart from '$lib/components/charts/BarChart.svelte';
 	import PieChart from '$lib/components/charts/PieChart.svelte';
 	import type { PageData } from './$types';
-	import MdHelpOutline from 'svelte-icons/md/MdHelpOutline.svelte';
+	import HelperPopup from '$lib/components/HelperPopup.svelte';
+	import { helpTexts, helpTemplates } from '$lib/constants/helperTemplates';
 
 	// Props
 	let { data }: { data: PageData } = $props();
-	console.log(data);
 
 	// Types
 	type MetricType = 'works' | 'citations' | 'avgCitations';
@@ -289,7 +289,7 @@
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">Number of Works</h3>
 				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
+					<HelperPopup content={helpTexts.totalWorkCount} popupTemplate={helpTemplates.compact} />
 				</button>
 			</div>
 			<h3 class="text-3xl font-medium">{data.info.works_count}</h3>
@@ -300,7 +300,7 @@
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">Number of Citations</h3>
 				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
+					<HelperPopup content={helpTexts.totalCitationCount} popupTemplate={helpTemplates.compact} />
 				</button>
 			</div>
 			<h3 class="text-3xl font-medium">{data.info.cited_by_count}</h3>
@@ -311,7 +311,7 @@
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">H-Index</h3>
 				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
+					<HelperPopup content={helpTexts.hindex} popupTemplate={helpTemplates.compact} />
 				</button>
 			</div>
 			<h3 class="text-3xl font-medium">{data.info.summary_stats.h_index}</h3>
@@ -322,7 +322,7 @@
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">i10-index</h3>
 				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
+					<HelperPopup content={helpTexts.iindex} popupTemplate={helpTemplates.compact} />
 				</button>
 			</div>
 			<h3 class="text-3xl font-medium">{data.info.summary_stats.i10_index}</h3>
@@ -336,7 +336,7 @@
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">Open Access Division</h3>
 				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
+					<HelperPopup content={helpTexts.openAccess} popupTemplate={helpTemplates.default} />
 				</button>
 			</div>
 			<div class="container mx-auto">
@@ -364,7 +364,7 @@
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">Paper Retraction Division</h3>
 				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
+					<HelperPopup content={helpTexts.paperRetraction} popupTemplate={helpTemplates.default} />
 				</button>
 			</div>
 			<div class="container mx-auto">
@@ -395,7 +395,7 @@
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">Most Discussed Topics</h3>
 				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
+					<HelperPopup content={helpTexts.mostDiscussedTopics} popupTemplate={helpTemplates.default} />
 				</button>
 			</div>
 			<div>
@@ -423,7 +423,7 @@
 			<div class="flex items-center justify-between">
 				<h3 class="text-lg font-medium">Top Research Funders</h3>
 				<button class="h-8 w-8 text-gray-500">
-					<MdHelpOutline />
+					<HelperPopup content={helpTexts.topFunders} popupTemplate={helpTemplates.default} />
 				</button>
 			</div>
 			<div class="h-4/5">
@@ -470,7 +470,7 @@
 				/>
 			</div>
 			<button class="h-8 w-8 text-gray-500">
-				<MdHelpOutline />
+				<HelperPopup content={helpTexts.institutionInfo} popupTemplate={helpTemplates.default} />
 			</button>
 		</div>
 		<div class="w-full px-4 pb-8 pt-12">
@@ -495,7 +495,7 @@
 		<div class="flex items-center justify-between">
 			<h3 class="text-lg font-medium">Latest Works</h3>
 			<button class="h-8 w-8 text-gray-500">
-				<MdHelpOutline />
+				<HelperPopup content={helpTexts.latestWorks} popupTemplate={helpTemplates.default} />
 			</button>
 		</div>
 		<table class="my-6 w-full table-auto p-6 text-left">
