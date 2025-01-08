@@ -2,6 +2,7 @@
 	import type { Institution } from '$lib/types/institution';
 	import { goto } from '$app/navigation';
 	import { compareStore } from '$lib/stores/compareStore';
+	import { loadingStore } from '$lib/stores/loadingStore';
 	import MdCompare from 'svelte-icons/md/MdCompareArrows.svelte';
 	import MdSchool from 'svelte-icons/md/MdSchool.svelte';
 	import MdCheck from 'svelte-icons/md/MdCheck.svelte';
@@ -20,6 +21,7 @@
 
 	function handleCompare(e: Event) {
 		e.stopPropagation();
+		e.preventDefault();
 		if (isComparing) {
 			compareStore.remove(institution.id);
 		} else {
@@ -28,7 +30,9 @@
 	}
 
 	function handleCardClick() {
-		goto(`/institutions/${institution.id.replace('https://openalex.org/', '')}`);
+		loadingStore.startLoading();
+		const institutionId = institution.id.replace('https://openalex.org/', '');
+		goto(`/institutions/${institutionId}`, { replaceState: false });
 	}
 </script>
 
